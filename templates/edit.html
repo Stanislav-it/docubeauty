@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel edycji</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css', v=static_version) }}">
+</head>
+<body>
+  <main class="main">
+    <section class="container">
+      {% if not logged_in %}
+        <div class="page-message">
+          <h1 class="h1">Panel edycji</h1>
+          <p class="page-message__text">
+            Zaloguj się, aby edytować ceny i opisy produktów.
+          </p>
+          {% if login_error %}
+            <div class="notice notice--error">{{ login_error }}</div>
+          {% endif %}
+          <form method="post" class="admin-login">
+            <div class="form-row">
+              <label class="form-label" for="username">Login</label>
+              <input class="form-input" id="username" type="text" name="username" autocomplete="username" required>
+            </div>
+            <div class="form-row">
+              <label class="form-label" for="password">Hasło</label>
+              <input class="form-input" id="password" type="password" name="password" autocomplete="current-password" required>
+            </div>
+            <button class="btn" type="submit">Zaloguj</button>
+          </form>
+        </div>
+      {% else %}
+        <div class="page-message">
+          <h1 class="h1">Edycja produktów</h1>
+          <p class="page-message__text">
+            Zmień opis i cenę, potem kliknij „Zapisz zmiany”.
+          </p>
+          {% if saved %}
+            <div class="notice notice--ok">Gotowe. Zapisano zmiany.</div>
+          {% endif %}
+        </div>
+
+        <form method="post" class="edit-prices">
+          <div class="edit-prices__toolbar">
+            <button class="btn" type="submit">Zapisz zmiany</button>
+            <a class="btn btn--secondary" href="{{ url_for('shop') }}">Wróć do sklepu</a>
+          </div>
+
+          {% for cat_name, products in groups %}
+            <div class="edit-category">
+              <div class="edit-category__head">
+                <h2 class="h2 edit-category__title">{{ cat_name }}</h2>
+              </div>
+
+              <div class="edit-category__table">
+                {% for p in products %}
+                  <div class="edit-row">
+                    <div class="edit-row__main">
+                      <div class="edit-row__title">{{ p.title }}</div>
+
+                      <label class="edit-field">
+                        <div class="edit-field__label">Opis</div>
+                        <textarea
+                          class="form-input edit-row__desc-input"
+                          name="desc_{{ p.id }}"
+                          rows="3"
+                        >{{ p.description or p.title }}</textarea>
+                      </label>
+                    </div>
+
+                    <div class="edit-row__side">
+                      <label class="edit-field">
+                        <div class="edit-field__label">Cena</div>
+                        <div class="edit-row__price-wrap">
+                          <input
+                            class="form-input edit-row__price-input"
+                            type="text"
+                            name="price_{{ p.id }}"
+                            value="{{ '%.2f'|format(p.price_pln) }}"
+                            inputmode="decimal"
+                          >
+                          <span class="edit-row__currency">zł</span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+
+          <div class="edit-prices__toolbar edit-prices__toolbar--bottom">
+            <button class="btn" type="submit">Zapisz zmiany</button>
+          </div>
+        </form>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

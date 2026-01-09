@@ -1,28 +1,38 @@
-# DocuBeauty — kategorie i pliki z `C:\produkty`
+# Flask Shop Template (beż / bordo / biel)
 
-## Co robi aplikacja
-- Strona główna (`/`) pokazuje kategorie (ZIP-y i foldery) z `C:\produkty`.
-- Przy każdej kategorii jest przycisk **Zobacz** → strona z plikami (`/category/<slug>`).
-- Dla ZIP-ów aplikacja pobiera listę plików z archiwum.
-- Dla folderów aplikacja pobiera listę plików (rekurencyjnie).
-- Po kliknięciu **Otwórz / pobierz** plik jest serwowany do przeglądarki.
-  - ZIP: wskazany plik jest wypakowywany do `static/cache/<cat_slug>/<item_id>/` i następnie udostępniany.
+Szablon sklepu na Flasku (lista produktów, wyszukiwarka, kategorie, sortowanie, koszyk w sesji) z dopracowaną wersją mobilną
+(menu „hamburger” jak na referencji) i stroną szczegółów produktu.
 
 ## Uruchomienie
 ```bash
+python -m venv .venv
+# Windows (PowerShell):
+# .venv\Scripts\Activate.ps1
+# Windows (CMD):
+# .venv\Scripts\activate.bat
+source .venv/bin/activate
+
 pip install -r requirements.txt
 python app.py
 ```
 
-Otwórz: http://127.0.0.1:5050/
+Otwórz: http://127.0.0.1:5000/shop
 
-Jeżeli Twoja lokalizacja katalogu jest inna niż `C:\produkty`, zmień `CATALOG_ROOT` w `app.py`.
+## Dane produktów (integracja z parserem 1cart)
 
-## Podglądy i znak wodny
-- Jeżeli w projekcie istnieją gotowe podglądy PNG (np. wygenerowane wcześniej) w `static/cards/...`, aplikacja będzie ich używać.
-- Na wszystkie karty kategorii i plików nakładany jest minimalistyczny watermark `docubeauty`.
-- Statyczne serwowanie `/static/...` jest wyłączone; obrazy są podawane przez trasy `/card/...` i `/itemcard/...`.
+Aplikacja automatycznie wczyta katalog z:
+- `export_all/products.json` (jeżeli plik istnieje) – to jest wynik działania parsera `scrape_1cart.py`,
+- w przeciwnym razie użyje wersji demonstracyjnej z `data/products.json`.
 
-## Update
-- Category card now uses preview of the first file inside the category.
-- Watermark now applies soft mosaic+blur censorship plus diagonal docubeauty.
+Zdjęcia pobrane przez parser są serwowane z katalogu:
+`export_all/images/` pod adresem:
+`/media/<ścieżka-do-pliku>`
+
+Przykład:
+`/media/dokumenty-zabiegowe/nazwa-pliku.jpg`
+
+## Struktura
+- `app.py` – aplikacja Flask
+- `templates/` – szablony HTML (lista, produkt, koszyk)
+- `static/` – CSS/JS + logo
+- `export_all/` – eksport z parsera (produkty + zdjęcia)

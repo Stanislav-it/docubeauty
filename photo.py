@@ -11,7 +11,7 @@ import fitz  # PyMuPDF
 from PIL import Image, ImageDraw, ImageFont
 
 CATALOG_ROOT = Path(r"C:\produkty")
-PROJECT_ROOT = Path(r"C:\ex_7")
+PROJECT_ROOT = Path(r"C:\ex_8")
 
 CARDS_ROOT = PROJECT_ROOT / "static" / "cards"
 ITEMS_ROOT = CARDS_ROOT / "items"

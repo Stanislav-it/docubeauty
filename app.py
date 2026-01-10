@@ -7,6 +7,7 @@ import os
 import re
 import unicodedata
 import time
+import uuid
 import shutil
 import posixpath
 import zipfile
@@ -38,6 +39,7 @@ STRIPE_SECRET_KEY_DEFAULT = os.getenv(
     "STRIPE_SECRET_KEY",
     "sk_test_REPLACE_WITH_ENV_VARIABLE"
 )
+from werkzeug.utils import secure_filename
 
 STRIPE_PUBLISHABLE_KEY_DEFAULT = os.getenv(
     "STRIPE_PUBLISHABLE_KEY",
@@ -587,6 +589,7 @@ class Product:
     images: Tuple[str, ...]      # relative paths to export_all/images/<...>
     image_source: str            # "media" or "static"
     source_url: str
+    download_file: str = ""
     docu_cat_slug: str = ""
     docu_item_id: str = ""
 
@@ -632,6 +635,12 @@ def create_app() -> Flask:
     os.makedirs(os.path.dirname(PRICE_OVERRIDES_PATH), exist_ok=True)
     DESCRIPTION_OVERRIDES_PATH = os.path.join(app.root_path, "data", "description_overrides.json")
     os.makedirs(os.path.dirname(DESCRIPTION_OVERRIDES_PATH), exist_ok=True)
+
+    CUSTOM_PRODUCTS_PATH = os.path.join(app.root_path, "data", "custom_products.json")
+    os.makedirs(os.path.dirname(CUSTOM_PRODUCTS_PATH), exist_ok=True)
+
+    UPLOADS_DIR = os.path.join(app.root_path, "static", "uploads")
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
 
     # -------------------------
     # Digital goods (downloads after payment)
@@ -840,8 +849,73 @@ def create_app() -> Flask:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             os.replace(tmp_path, DESCRIPTION_OVERRIDES_PATH)
         except Exception:
-            # Best-effort
             pass
+    def load_custom_products() -> List[Product]:
+        try:
+            with open(CUSTOM_PRODUCTS_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f) or []
+        except FileNotFoundError:
+            return []
+        except Exception:
+            return []
+
+        items: List[Product] = []
+        if not isinstance(raw, list):
+            return items
+
+        for x in raw:
+            if not isinstance(x, dict):
+                continue
+            pid = str(x.get("id") or "").strip()
+            title = str(x.get("title") or "").strip()
+            if not pid or not title:
+                continue
+
+            desc = str(x.get("description") or "").strip()
+            try:
+                price = float(x.get("price_pln") or 0.0)
+            except Exception:
+                price = 0.0
+
+            img = str(x.get("image") or "").strip()
+            dl = str(x.get("file") or "").strip()
+            category = str(x.get("category") or "Produkty").strip() or "Produkty"
+
+            items.append(
+                Product(
+                    id=pid,
+                    title=title,
+                    category=category,
+                    category_url="",
+                    price_pln=price,
+                    description=desc,
+                    images=(img,) if img else tuple(),
+                    image_source="static",
+                    source_url="",
+                    download_file=dl,
+                )
+            )
+        return items
+
+    def save_custom_products(raw: List[Dict[str, Any]]) -> None:
+        tmp_path = CUSTOM_PRODUCTS_PATH + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(raw, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, CUSTOM_PRODUCTS_PATH)
+
+    def append_custom_product(record: Dict[str, Any]) -> None:
+        try:
+            existing = []
+            if os.path.exists(CUSTOM_PRODUCTS_PATH):
+                with open(CUSTOM_PRODUCTS_PATH, "r", encoding="utf-8") as f:
+                    existing = json.load(f) or []
+            if not isinstance(existing, list):
+                existing = []
+        except Exception:
+            existing = []
+        existing.append(record)
+        save_custom_products(existing)
+
 
     def apply_description_overrides(products: List[Product], overrides: Dict[str, str]) -> List[Product]:
         if not overrides and all((p.description or "") for p in products):
@@ -895,7 +969,8 @@ def create_app() -> Flask:
         # If DocuBeauty catalog exists on this machine (default C:\produkty), use it as the shop source.
         docu_products = build_docubeauty_products(app.root_path)
         if docu_products:
-            prods = apply_price_overrides(docu_products, price_overrides)
+            base = list(docu_products) + list(load_custom_products())
+            prods = apply_price_overrides(base, price_overrides)
             prods = apply_description_overrides(prods, desc_overrides)
             return prods
 
@@ -975,6 +1050,8 @@ def create_app() -> Flask:
                     )
                 )
 
+        items.extend(load_custom_products())
+
         prods = apply_price_overrides(items, price_overrides)
         prods = apply_description_overrides(prods, desc_overrides)
         return prods
@@ -1006,13 +1083,23 @@ def create_app() -> Flask:
     def cart_summary(catalog: List[Product]) -> Dict[str, Any]:
         cart = get_cart()
         by_id = {p.id: p for p in catalog}
-        count = sum(cart.values())
+
+        # Count only items that still exist in the catalog.
+        # This prevents showing "1" when the cart contains stale/unknown product IDs.
+        valid_cart: Dict[str, int] = {}
+        count = 0
         total = 0.0
+
         for pid, qty in cart.items():
             p = by_id.get(pid)
             if not p:
                 continue
+            valid_cart[pid] = qty
+            count += qty
             total += p.unit_price_for_cart() * qty
+
+        # Persist only valid items back to session
+        session["cart"] = valid_cart
         return {"count": count, "total": total}
 
     # -------------------------
@@ -1083,7 +1170,8 @@ def create_app() -> Flask:
         # DocuBeauty mode: show only category navigation cards on the main shop page.
         # Individual sellable files are displayed inside each category page.
         if any(p.docu_cat_slug for p in catalog):
-            catalog = [p for p in catalog if p.docu_cat_slug and not p.docu_item_id]
+            # In DocuBeauty mode keep only category-cards and any custom products (exclude file-items).
+            catalog = [p for p in catalog if not p.docu_item_id]
 
         q = (request.args.get("q") or "").strip()
         cat = (request.args.get("category") or "").strip()  # slug
@@ -1111,6 +1199,8 @@ def create_app() -> Flask:
             except Exception:
                 pass
 
+        menu_source = catalog
+
         filtered = catalog
 
         if cat:
@@ -1130,6 +1220,21 @@ def create_app() -> Flask:
             filtered = sorted(filtered, key=lambda p: (-p.price_pln, p.title.lower()))
         else:
             filtered = sorted(filtered, key=lambda p: p.title.lower())
+
+
+        # Build category menu (unique categories for left sidebar / mobile strip)
+        menu_categories: List[Dict[str, str]] = []
+        seen_slugs: set[str] = set()
+        for p in menu_source:
+            if p.docu_cat_slug and not p.docu_item_id:
+                label = p.title
+            else:
+                label = p.category
+            slug = slugify(label)
+            if slug in seen_slugs:
+                continue
+            seen_slugs.add(slug)
+            menu_categories.append({"label": label, "slug": slug})
 
         total = len(filtered)
         pages = max(1, math.ceil(total / per_page))
@@ -1157,6 +1262,7 @@ def create_app() -> Flask:
             per_page=per_page,
             total=total,
             page_range=page_range,
+            categories=menu_categories,
         )
 
     @app.get("/api/search_suggest")
@@ -1362,6 +1468,72 @@ def create_app() -> Flask:
             else:
                 # Save prices for all products visible on the page
                 # Save prices and descriptions for all products visible on the page
+                
+                action = (request.form.get("action") or "").strip()
+
+                # Add new custom product (title, photo, description, price, file)
+                if action == "add_product":
+                    title = (request.form.get("new_title") or "").strip()
+                    desc = (request.form.get("new_description") or "").strip()
+                    raw_price = (request.form.get("new_price") or "").strip()
+                    photo = request.files.get("new_photo")
+                    product_file = request.files.get("new_file")
+
+                    def _save_upload(f, allowed_exts: set[str]) -> str:
+                        if not f or not getattr(f, "filename", ""):
+                            return ""
+                        name = secure_filename(f.filename)
+                        ext = os.path.splitext(name)[1].lower()
+                        if ext not in allowed_exts:
+                            return ""
+                        new_name = f"{uuid.uuid4().hex}{ext}"
+                        dst = os.path.join(UPLOADS_DIR, new_name)
+                        f.save(dst)
+                        return f"uploads/{new_name}"
+
+                    try:
+                        cleaned = raw_price.replace("zł", "").replace("ZŁ", "").replace(" ", "").replace(",", ".")
+                        price = float(cleaned) if cleaned else 0.0
+                    except Exception:
+                        price = 0.0
+
+                    img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp"})
+                    file_rel = _save_upload(product_file, {".pdf", ".zip", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"})
+
+                    if not title or price <= 0 or not img_rel or not file_rel:
+                        # Render edit page with an inline error
+                        catalog = get_catalog()
+                        grouped: Dict[str, List[Product]] = {}
+                        for p in catalog:
+                            grouped.setdefault(p.category, []).append(p)
+                        groups = []
+                        for cat_name in sorted(grouped.keys(), key=lambda x: x.lower()):
+                            prods = sorted(grouped[cat_name], key=lambda p: p.title.lower())
+                            groups.append((cat_name, prods))
+
+                        return render_template(
+                            "edit.html",
+                            logged_in=True,
+                            groups=groups,
+                            saved=False,
+                            added=False,
+                            add_error="Wypełnij wszystkie pola: nazwa, zdjęcie, opis, cena oraz plik (np. PDF).",
+                        )
+
+                    pid = f"custom:{uuid.uuid4().hex}"
+                    record = {
+                        "id": pid,
+                        "title": title,
+                        "description": desc,
+                        "price_pln": price,
+                        "image": img_rel,
+                        "file": file_rel,
+                        "category": "Produkty",
+                        "created_at": int(time.time()),
+                    }
+                    append_custom_product(record)
+                    return redirect(url_for("edit", added=1))
+
                 price_overrides = load_price_overrides()
                 desc_overrides = load_description_overrides()
                 catalog = get_catalog()
@@ -1423,7 +1595,14 @@ def create_app() -> Flask:
             prods = sorted(grouped[cat_name], key=lambda p: p.title.lower())
             groups.append((cat_name, prods))
 
-        return render_template("edit.html", logged_in=True, groups=groups, saved=(request.args.get("saved") == "1"))
+        return render_template(
+            "edit.html",
+            logged_in=True,
+            groups=groups,
+            saved=(request.args.get("saved") == "1"),
+            added=(request.args.get("added") == "1"),
+            add_error=None,
+        )
 
     @app.get("/cart")
     def cart():

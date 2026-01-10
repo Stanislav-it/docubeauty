@@ -186,8 +186,28 @@
           </div>
         </div>
 
+        {% if categories %}
+          <div class="shop__cats mobile-only">
+            <div class="shop-cats-strip">
+              {% for cat in categories %}
+                <a class="cat-pill" href="#{{ cat.slug }}">{{ cat.label }}</a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
         <div class="shop__layout">
-<div class="shop__content">
+        {% if categories %}
+        <aside class="sidebar desktop-only">
+          <div class="sidebar__title">Kategorie</div>
+          <nav>
+            {% for cat in categories %}
+              <a class="cat-link" href="#{{ cat.slug }}">{{ cat.label }}</a>
+            {% endfor %}
+          </nav>
+        </aside>
+        {% endif %}
+        <div class="shop__content">
             <div class="grid">
               {% if products|length == 0 %}
                 <div class="empty">
@@ -197,7 +217,7 @@
               {% endif %}
 
               {% for p in products %}
-                <article class="card">
+                <article class="card" id="{{ p.title|slug }}">
                   <a class="card__img" href="{{ url_for('product', pid=p.id) }}">
                     {% set hero = p.primary_image() %}
                     {% if hero %}
@@ -217,7 +237,7 @@
                       <a href="{{ url_for('product', pid=p.id) }}">{{ p.title }}</a>
                     </h3>
                     <div class="card__actions">
-                      <a class="btn" href="{{ url_for('product', pid=p.id) }}">Zobacz produkty</a>
+                      <a class="btn" href="{{ url_for('product', pid=p.id) }}">Zobacz</a>
                     </div>
                   {% else %}
                     <div class="card__meta">{{ p.category|upper }}</div>
@@ -520,6 +540,9 @@
 
           <div class="product__cta">
             <button class="btn" type="button" data-add-to-cart="{{ p.id }}">Dodaj do koszyka</button>
+            {% if p.download_file %}
+              <a class="btn btn--secondary" href="{{ url_for('static', filename=p.download_file) }}" download>Pobierz plik</a>
+            {% endif %}
             <a class="btn btn--outline" href="{{ url_for('shop') }}">Wróć do listy</a>
           </div>
 

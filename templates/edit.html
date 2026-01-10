@@ -41,6 +41,73 @@
           {% endif %}
         </div>
 
+        <section class="edit-add">
+          <h2 class="h2">Dodaj nowy produkt</h2>
+
+          {% if added %}
+            <div class="notice notice--ok">Dodano nowy produkt.</div>
+          {% endif %}
+          {% if add_error %}
+            <div class="notice notice--err">{{ add_error }}</div>
+          {% endif %}
+
+          <form method="post" enctype="multipart/form-data" class="add-product" id="addProductForm">
+            <input type="hidden" name="action" value="add_product">
+
+            <div class="wizard" data-wizard>
+              <div class="wizard__steps">
+                <span class="wizard__dot is-active" data-dot="1"></span>
+                <span class="wizard__dot" data-dot="2"></span>
+                <span class="wizard__dot" data-dot="3"></span>
+                <span class="wizard__dot" data-dot="4"></span>
+                <span class="wizard__dot" data-dot="5"></span>
+              </div>
+
+              <div class="wizard-step is-active" data-step="1">
+                <label class="edit-field">
+                  <div class="edit-field__label">Nazwa produktu</div>
+                  <input class="form-input" type="text" name="new_title" required placeholder="Np. Zabieg – pakiet dokumentacji">
+                </label>
+              </div>
+
+              <div class="wizard-step" data-step="2">
+                <label class="edit-field">
+                  <div class="edit-field__label">Zdjęcie (miniatura)</div>
+                  <input class="form-input" type="file" name="new_photo" accept="image/*" required>
+                </label>
+              </div>
+
+              <div class="wizard-step" data-step="3">
+                <label class="edit-field">
+                  <div class="edit-field__label">Opis</div>
+                  <textarea class="form-input" name="new_description" rows="6" placeholder="Opis produktu..."></textarea>
+                </label>
+              </div>
+
+              <div class="wizard-step" data-step="4">
+                <label class="edit-field">
+                  <div class="edit-field__label">Cena (PLN)</div>
+                  <input class="form-input" type="text" name="new_price" required placeholder="Np. 49.99">
+                </label>
+              </div>
+
+              <div class="wizard-step" data-step="5">
+                <label class="edit-field">
+                  <div class="edit-field__label">Plik (PDF / ZIP / DOCX itp.)</div>
+                  <input class="form-input" type="file" name="new_file" required>
+                </label>
+                <div class="muted" style="margin-top:8px;">Po dodaniu produkt pojawi się w sklepie i w panelu edycji.</div>
+              </div>
+
+              <div class="wizard__actions">
+                <button class="btn btn--secondary" type="button" data-prev>Wstecz</button>
+                <button class="btn" type="button" data-next>Dalej</button>
+                <button class="btn" type="submit" data-submit style="display:none;">Dodaj produkt</button>
+              </div>
+            </div>
+          </form>
+        </section>
+
         <form method="post" class="edit-prices">
           <div class="edit-prices__toolbar">
             <button class="btn" type="submit">Zapisz zmiany</button>
@@ -97,5 +164,62 @@
       {% endif %}
     </section>
   </main>
+
+<script>
+(function(){
+  const wizard = document.querySelector('[data-wizard]');
+  if(!wizard) return;
+
+  const steps = Array.from(wizard.querySelectorAll('.wizard-step'));
+  const dots = Array.from(wizard.querySelectorAll('.wizard__dot'));
+  const btnPrev = wizard.querySelector('[data-prev]');
+  const btnNext = wizard.querySelector('[data-next]');
+  const btnSubmit = wizard.querySelector('[data-submit]');
+
+  let current = 1;
+
+  function render(){
+    steps.forEach(s => s.classList.toggle('is-active', Number(s.dataset.step) === current));
+    dots.forEach(d => d.classList.toggle('is-active', Number(d.dataset.dot) === current));
+    btnPrev.disabled = current === 1;
+    if(current === steps.length){
+      btnNext.style.display = 'none';
+      btnSubmit.style.display = '';
+    } else {
+      btnNext.style.display = '';
+      btnSubmit.style.display = 'none';
+    }
+  }
+
+  function validateStep(){
+    const active = steps.find(s => Number(s.dataset.step) === current);
+    if(!active) return true;
+    const required = active.querySelectorAll('[required]');
+    for(const el of required){
+      if(el.type === 'file'){
+        if(!el.files || el.files.length === 0) return false;
+      } else if(!el.value || !el.value.trim()){
+        return false;
+      }
+    }
+    return true;
+  }
+
+  btnPrev.addEventListener('click', () => {
+    if(current > 1){ current--; render(); }
+  });
+
+  btnNext.addEventListener('click', () => {
+    if(!validateStep()){
+      alert('Uzupełnij pole, aby przejść dalej.');
+      return;
+    }
+    if(current < steps.length){ current++; render(); }
+  });
+
+  render();
+})();
+</script>
+
 </body>
 </html>

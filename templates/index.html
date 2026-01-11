@@ -189,8 +189,9 @@
         {% if categories %}
           <div class="shop__cats mobile-only">
             <div class="shop-cats-strip">
+              <a class="cat-pill {% if not active_category %}is-active{% endif %}" href="{{ url_for('shop', q=q, sort=sort) }}">Wszystkie</a>
               {% for cat in categories %}
-                <a class="cat-pill" href="#{{ cat.slug }}">{{ cat.label }}</a>
+                <a class="cat-pill {% if active_category == cat.slug %}is-active{% endif %}" href="{{ url_for('shop', category=cat.slug, q=q, sort=sort) }}">{{ cat.label }}</a>
               {% endfor %}
             </div>
           </div>
@@ -201,8 +202,9 @@
         <aside class="sidebar desktop-only">
           <div class="sidebar__title">Kategorie</div>
           <nav>
+            <a class="cat-link {% if not active_category %}is-active{% endif %}" href="{{ url_for('shop', q=q, sort=sort) }}">Wszystkie</a>
             {% for cat in categories %}
-              <a class="cat-link" href="#{{ cat.slug }}">{{ cat.label }}</a>
+              <a class="cat-link {% if active_category == cat.slug %}is-active{% endif %}" href="{{ url_for('shop', category=cat.slug, q=q, sort=sort) }}">{{ cat.label }}</a>
             {% endfor %}
           </nav>
         </aside>
@@ -231,8 +233,8 @@
                     {% endif %}
                   </a>
 
-                  {% if p.docu_cat_slug and not p.docu_item_id %}
-                    <div class="card__meta">PAKIET DOKUMENTACJI</div>
+                  {% if (p.docu_cat_slug and not p.docu_item_id) or p.id.startswith('cat:') %}
+                    <div class="card__meta">{% if p.id.startswith('cat:') %}KATEGORIA{% else %}PAKIET DOKUMENTACJI{% endif %}</div>
                     <h3 class="card__title">
                       <a href="{{ url_for('product', pid=p.id) }}">{{ p.title }}</a>
                     </h3>
@@ -541,7 +543,11 @@
           <div class="product__cta">
             <button class="btn" type="button" data-add-to-cart="{{ p.id }}">Dodaj do koszyka</button>
             {% if p.download_file %}
-              <a class="btn btn--secondary" href="{{ url_for('static', filename=p.download_file) }}" download>Pobierz plik</a>
+        {% if download_url %}
+          <a class="btn btn--secondary" href="{{ download_url }}">Pobierz plik</a>
+        {% else %}
+          <div class="muted" style="margin:8px 0 0;">Plik będzie dostępny do pobrania po opłaceniu zamówienia.</div>
+        {% endif %}
             {% endif %}
             <a class="btn btn--outline" href="{{ url_for('shop') }}">Wróć do listy</a>
           </div>

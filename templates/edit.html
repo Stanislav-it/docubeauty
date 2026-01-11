@@ -7,17 +7,19 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css', v=static_version) }}">
 </head>
 <body>
-  <main class="main">
+  <main class="main admin">
     <section class="container">
       {% if not logged_in %}
-        <div class="page-message">
+        <div class="admin-login-card">
           <h1 class="h1">Panel edycji</h1>
-          <p class="page-message__text">
+          <p class="muted">
             Zaloguj się, aby edytować ceny i opisy produktów.
           </p>
+
           {% if login_error %}
             <div class="notice notice--error">{{ login_error }}</div>
           {% endif %}
+
           <form method="post" class="admin-login">
             <div class="form-row">
               <label class="form-label" for="username">Login</label>
@@ -30,194 +32,544 @@
             <button class="btn" type="submit">Zaloguj</button>
           </form>
         </div>
+
       {% else %}
-        <div class="page-message">
-          <h1 class="h1">Edycja produktów</h1>
-          <p class="page-message__text">
-            Zmień opis i cenę, potem kliknij „Zapisz zmiany”.
-          </p>
+
+        <!-- Top bar: ONLY search + back to shop -->
+        <header class="edit-topbar edit-topbar--simple">
+          <div class="edit-topbar__search">
+            <label class="sr-only" for="adminSearch">Szukaj</label>
+            <input class="form-input" id="adminSearch" type="search" placeholder="Szukaj kategorii lub produktu…" autocomplete="off">
+          </div>
+          <div class="edit-topbar__actions">
+            <a class="btn btn--secondary" href="{{ url_for('shop') }}">Wróć do sklepu</a>
+          </div>
+        </header>
+
+        <div class="admin-notices">
+          {% if product_saved %}
+            <div class="notice notice--ok">Zapisano zmiany w produkcie.</div>
+          {% endif %}
           {% if saved %}
             <div class="notice notice--ok">Gotowe. Zapisano zmiany.</div>
           {% endif %}
-        </div>
-
-        <section class="edit-add">
-          <h2 class="h2">Dodaj nowy produkt</h2>
-
           {% if added %}
             <div class="notice notice--ok">Dodano nowy produkt.</div>
           {% endif %}
-          {% if add_error %}
-            <div class="notice notice--err">{{ add_error }}</div>
+          {% if added_category %}
+            <div class="notice notice--ok">Dodano nową kategorię.</div>
           {% endif %}
+          {% if deleted_category %}
+            <div class="notice notice--ok">Usunięto kategorię.</div>
+          {% endif %}
+          {% if deleted_product %}
+            <div class="notice notice--ok">Usunięto produkt.</div>
+          {% endif %}
+          {% if photo_updated %}
+            <div class="notice notice--ok">Zaktualizowano zdjęcie produktu.</div>
+          {% endif %}
+          {% if error_message %}
+            <div class="notice notice--error">{{ error_message }}</div>
+          {% endif %}
+          {% if add_error %}
+            <div class="notice notice--error">{{ add_error }}</div>
+          {% endif %}
+        </div>
 
-          <form method="post" enctype="multipart/form-data" class="add-product" id="addProductForm">
-            <input type="hidden" name="action" value="add_product">
+        <!-- Categories -->
+        <section class="admin-content admin-content--flat" id="adminContent">
 
-            <div class="wizard" data-wizard>
-              <div class="wizard__steps">
-                <span class="wizard__dot is-active" data-dot="1"></span>
-                <span class="wizard__dot" data-dot="2"></span>
-                <span class="wizard__dot" data-dot="3"></span>
-                <span class="wizard__dot" data-dot="4"></span>
-                <span class="wizard__dot" data-dot="5"></span>
-              </div>
-
-              <div class="wizard-step is-active" data-step="1">
-                <label class="edit-field">
-                  <div class="edit-field__label">Nazwa produktu</div>
-                  <input class="form-input" type="text" name="new_title" required placeholder="Np. Zabieg – pakiet dokumentacji">
-                </label>
-              </div>
-
-              <div class="wizard-step" data-step="2">
-                <label class="edit-field">
-                  <div class="edit-field__label">Zdjęcie (miniatura)</div>
-                  <input class="form-input" type="file" name="new_photo" accept="image/*" required>
-                </label>
-              </div>
-
-              <div class="wizard-step" data-step="3">
-                <label class="edit-field">
-                  <div class="edit-field__label">Opis</div>
-                  <textarea class="form-input" name="new_description" rows="6" placeholder="Opis produktu..."></textarea>
-                </label>
-              </div>
-
-              <div class="wizard-step" data-step="4">
-                <label class="edit-field">
-                  <div class="edit-field__label">Cena (PLN)</div>
-                  <input class="form-input" type="text" name="new_price" required placeholder="Np. 49.99">
-                </label>
-              </div>
-
-              <div class="wizard-step" data-step="5">
-                <label class="edit-field">
-                  <div class="edit-field__label">Plik (PDF / ZIP / DOCX itp.)</div>
-                  <input class="form-input" type="file" name="new_file" required>
-                </label>
-                <div class="muted" style="margin-top:8px;">Po dodaniu produkt pojawi się w sklepie i w panelu edycji.</div>
-              </div>
-
-              <div class="wizard__actions">
-                <button class="btn btn--secondary" type="button" data-prev>Wstecz</button>
-                <button class="btn" type="button" data-next>Dalej</button>
-                <button class="btn" type="submit" data-submit style="display:none;">Dodaj produkt</button>
-              </div>
+          <div class="admin-hint">
+            <div class="muted">
+              Każdy produkt ma własny przycisk „Zapisz” w swojej karcie. Kategorie są zwijane — w nagłówku widzisz ich nazwę i liczbę produktów.
             </div>
-          </form>
+          </div>
+
+          <div class="category-list" data-category-list>
+            {% for cat_name, products in groups %}
+              <details class="cat-card" data-cat-card id="cat-{{ loop.index }}">
+                <summary class="cat-card__summary">
+                  <div class="cat-card__title">
+                    <!-- Editable category name: auto-save on blur/Enter (no button) -->
+                    <form method="post" class="cat-rename" data-cat-rename>
+                      <input type="hidden" name="action" value="cat_rename">
+                      <input type="hidden" name="old_name" value="{{ cat_name }}">
+                      <input
+                        class="cat-card__name-input"
+                        type="text"
+                        name="new_name"
+                        value="{{ cat_name }}"
+                        autocomplete="off"
+                        required
+                        data-cat-input
+                        aria-label="Nazwa kategorii"
+                      >
+                      <button type="submit" class="sr-only" tabindex="-1" aria-hidden="true">Zapisz</button>
+                    </form>
+                    <span class="badge">{{ products|length }}</span>
+                  </div>
+
+                  <div class="cat-card__right">
+                    <div class="cat-card__meta muted">Kliknij, aby rozwinąć</div>
+
+                    {# DocuBeauty category photo (category card uses first item by default, but admin can override) #}
+                    {% if products and products[0].docu_cat_slug %}
+
+                      <form method="post" enctype="multipart/form-data" class="inline-form" data-stop-summary data-cat-photo>
+                        <input type="hidden" name="action" value="cat_photo">
+                        <input type="hidden" name="cat_slug" value="{{ products[0].docu_cat_slug }}">
+                        <input class="file-hidden" type="file" name="photo" id="catphoto_{{ loop.index }}" accept="image/*" required>
+                        <label class="btn btn--small btn--secondary" for="catphoto_{{ loop.index }}" data-stop-summary>Zmień zdjęcie</label>
+                        <button type="submit" class="sr-only" tabindex="-1" aria-hidden="true">Zapisz</button>
+                      </form>
+                    
+                    {% else %}
+                      <form method="post" enctype="multipart/form-data" class="inline-form" data-stop-summary data-cat-photo>
+                        <input type="hidden" name="action" value="cat_photo">
+                        <input type="hidden" name="cat_name" value="{{ cat_name }}">
+                        <input class="file-hidden" type="file" name="photo" id="catphoto_any_{{ loop.index }}" accept="image/*" required>
+                        <label class="btn btn--small btn--secondary" for="catphoto_any_{{ loop.index }}" data-stop-summary>Zmień zdjęcie</label>
+                        <button type="submit" class="sr-only" tabindex="-1" aria-hidden="true">Zapisz</button>
+                      </form>
+                    {% endif %}
+
+                    <button class="btn btn--small" type="button" data-stop-summary data-add-product-btn>Dodaj produkt</button>
+
+                    <form method="post" class="inline-form" data-stop-summary data-confirm="Usunąć kategorię „{{ cat_name }}”?">
+                      <input type="hidden" name="action" value="cat_delete">
+                      <input type="hidden" name="name" value="{{ cat_name }}">
+                      <button class="btn btn--small btn--danger" type="submit">Usuń kategorię</button>
+                    </form>
+                  </div>
+                </summary>
+
+                <div class="cat-card__body">
+
+                  <div class="cat-add" data-cat-add style="display:none; margin:12px 0 16px; padding:14px; border:1px solid rgba(0,0,0,.08); border-radius:14px; background:rgba(0,0,0,.02);">
+                    <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:10px;">
+                      <div style="font-weight:600;">Dodaj produkt do tej kategorii</div>
+                      <button class="btn btn--small btn--secondary" type="button" data-cat-add-cancel>Zamknij</button>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data" class="add-product-inline">
+                      <input type="hidden" name="action" value="add_product">
+                      <input type="hidden" name="new_category" value="{{ cat_name }}">
+
+                      <div class="products-grid products-grid--add">
+                        <label class="edit-field" style="grid-column: 1 / -1;">
+                          <div class="edit-field__label">Nazwa produktu</div>
+                          <input class="form-input" type="text" name="new_title" required placeholder="Np. Zabieg – pakiet dokumentacji">
+                        </label>
+
+                        <label class="edit-field">
+                          <div class="edit-field__label">Zdjęcie (miniatura)</div>
+                          <input class="form-input" type="file" name="new_photo" accept="image/*" required>
+                        </label>
+
+                        <label class="edit-field">
+                          <div class="edit-field__label">Plik (PDF / ZIP / DOCX itp.)</div>
+                          <input class="form-input" type="file" name="new_file" required>
+                        </label>
+
+                        <label class="edit-field" style="grid-column: 1 / -1;">
+                          <div class="edit-field__label">Opis</div>
+                          <textarea class="form-input" name="new_description" rows="4" placeholder="Opis produktu..."></textarea>
+                        </label>
+
+                        <label class="edit-field" style="max-width:240px;">
+                          <div class="edit-field__label">Cena (PLN)</div>
+                          <input class="form-input" type="text" name="new_price" required placeholder="Np. 49.99" inputmode="decimal">
+                        </label>
+
+                        <div style="display:flex; align-items:flex-end; gap:10px;">
+                          <button class="btn" type="submit">Dodaj produkt</button>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+
+                  {% if products|length == 0 %}
+                    <div class="muted" style="padding:12px 0;">Brak produktów w tej kategorii.</div>
+                  {% else %}
+                    <div class="products-grid">
+                      {% for p in products %}
+                        <article class="prod-card" data-prod-card data-search="{{ (cat_name ~ ' ' ~ p.title ~ ' ' ~ (p.description or '') )|lower }}">
+                          <div class="prod-card__media">
+                            {% if p.photo_url %}
+                              <img src="{{ p.photo_url }}" alt="" class="prod-card__img">
+                            {% else %}
+                              <div class="prod-card__img prod-card__img--empty">Brak zdjęcia</div>
+                            {% endif %}
+                          </div>
+
+                          <div class="prod-card__body">
+                            <div class="prod-card__head">
+                              <!-- Per-product save form (no bulk chaos) -->
+                              <form method="post" class="prod-edit" id="prodForm_{{ p.id|replace(':','_') }}">
+                                <input type="hidden" name="action" value="product_update">
+                                <input type="hidden" name="product_id" value="{{ p.id }}">
+
+                                <input
+                                  class="prod-card__title-input"
+                                  type="text"
+                                  name="title"
+                                  value="{{ p.title }}"
+                                  autocomplete="off"
+                                  required
+                                  aria-label="Nazwa produktu"
+                                >
+
+                                <label class="edit-field">
+                                  <div class="edit-field__label">Opis</div>
+                                  <textarea class="form-input" name="description" rows="3">{{ p.description or p.title }}</textarea>
+                                </label>
+
+                                <div class="prod-edit__row">
+                                  <label class="edit-field prod-edit__price">
+                                    <div class="edit-field__label">Cena</div>
+                                    <div class="edit-row__price-wrap">
+                                      <input class="form-input" type="text" name="price" value="{{ '%.2f'|format(p.price_pln) }}" inputmode="decimal">
+                                      <span class="edit-row__currency">zł</span>
+                                    </div>
+                                  </label>
+
+                                  <div class="prod-edit__save">
+                                    <button class="btn" type="submit">Zapisz</button>
+                                  </div>
+                                </div>
+                              </form>
+
+                              <form method="post" class="inline-form" data-confirm="Usunąć produkt „{{ p.title }}”?">
+                                <input type="hidden" name="action" value="product_delete">
+                                <input type="hidden" name="product_id" value="{{ p.id }}">
+                                <button class="btn btn--small btn--secondary" type="submit">Usuń</button>
+                              </form>
+                            </div>
+
+                            <!-- Photo update (separate form, compact, no browser file UI text) -->
+                            <div class="prod-photo">
+                              <form method="post" enctype="multipart/form-data" class="product-photo" data-photo-form>
+                                <input type="hidden" name="action" value="product_photo">
+                                <input type="hidden" name="product_id" value="{{ p.id }}">
+
+                                {% set pid = p.id|replace(':','_') %}
+                                <input class="file-hidden" type="file" name="photo" id="photo_{{ pid }}" accept="image/*" required>
+
+                                <div class="file-row">
+                                  <label class="btn btn--small btn--secondary" for="photo_{{ pid }}" data-stop-summary>Zmień zdjęcie</label>
+                                  <span class="file-name" data-file-name>Nie wybrano pliku</span>
+                                  <button class="btn btn--small" type="submit" data-photo-submit disabled>Zapisz</button>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
+                        </article>
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+
+                </div>
+              </details>
+            {% endfor %}
+          </div>
+
+          <!-- Add panels (collapsed by default, so they do not мешают) -->
+          <section class="admin-panel admin-panel--add">
+            <details class="panel">
+              <summary class="panel__summary">
+                <span class="panel__title">Dodawanie: kategorie i produkty</span>
+                <span class="panel__hint">kliknij, aby rozwinąć</span>
+              </summary>
+              <div class="panel__body">
+
+                <!-- Add category -->
+                <div class="add-block">
+                  <h2 class="h2">Dodaj nową kategorię</h2>
+                  <form method="post" class="add-category">
+                    <input type="hidden" name="action" value="add_category">
+                    <label class="edit-field" style="min-width:260px;">
+                      <div class="edit-field__label">Nazwa kategorii</div>
+                      <input class="form-input" type="text" name="category_name" required placeholder="Np. Dokumenty / Konsultacje">
+                    </label>
+                    <button class="btn" type="submit">Dodaj kategorię</button>
+                  </form>
+                </div>
+
+                <hr class="admin-hr">
+
+                <!-- Add product wizard (kept) -->
+                <div class="add-block">
+                  <h2 class="h2">Dodaj nowy produkt</h2>
+                  <form method="post" enctype="multipart/form-data" class="add-product" id="addProductForm">
+                    <input type="hidden" name="action" value="add_product">
+
+                    <div class="wizard" data-wizard>
+                      <div class="wizard__steps">
+                        <span class="wizard__dot is-active" data-dot="1"></span>
+                        <span class="wizard__dot" data-dot="2"></span>
+                        <span class="wizard__dot" data-dot="3"></span>
+                        <span class="wizard__dot" data-dot="4"></span>
+                        <span class="wizard__dot" data-dot="5"></span>
+                      </div>
+
+                      <div class="wizard-step is-active" data-step="1">
+                        <label class="edit-field">
+                          <div class="edit-field__label">Kategoria</div>
+                          <select class="form-input" name="new_category" required>
+                            <option value="" disabled selected>Wybierz kategorię...</option>
+                            {% for cat in categories %}
+                              <option value="{{ cat }}">{{ cat }}</option>
+                            {% endfor %}
+                          </select>
+                        </label>
+
+                        <label class="edit-field" style="margin-top:12px;">
+                          <div class="edit-field__label">Nazwa produktu</div>
+                          <input class="form-input" type="text" name="new_title" required placeholder="Np. Zabieg – pakiet dokumentacji">
+                        </label>
+                      </div>
+
+                      <div class="wizard-step" data-step="2">
+                        <label class="edit-field">
+                          <div class="edit-field__label">Zdjęcie (miniatura)</div>
+                          <input class="form-input" type="file" name="new_photo" accept="image/*" required>
+                        </label>
+                      </div>
+
+                      <div class="wizard-step" data-step="3">
+                        <label class="edit-field">
+                          <div class="edit-field__label">Opis</div>
+                          <textarea class="form-input" name="new_description" rows="6" placeholder="Opis produktu..."></textarea>
+                        </label>
+                      </div>
+
+                      <div class="wizard-step" data-step="4">
+                        <label class="edit-field">
+                          <div class="edit-field__label">Cena (PLN)</div>
+                          <input class="form-input" type="text" name="new_price" required placeholder="Np. 49.99" inputmode="decimal">
+                        </label>
+                      </div>
+
+                      <div class="wizard-step" data-step="5">
+                        <label class="edit-field">
+                          <div class="edit-field__label">Plik (PDF / ZIP / DOCX itp.)</div>
+                          <input class="form-input" type="file" name="new_file" required>
+                        </label>
+                        <div class="muted" style="margin-top:8px;">Po dodaniu produkt pojawi się w sklepie i w panelu edycji.</div>
+                      </div>
+
+                      <div class="wizard__actions">
+                        <button class="btn btn--secondary" type="button" data-prev>Wstecz</button>
+                        <button class="btn" type="button" data-next>Dalej</button>
+                        <button class="btn" type="submit" data-submit style="display:none;">Dodaj produkt</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+
+                <hr class="admin-hr">
+
+                <!-- Logout moved here (not in topbar) -->
+                <form method="post" class="logout-row">
+                  <input type="hidden" name="action" value="logout">
+                  <button class="btn btn--secondary" type="submit">Wyloguj</button>
+                </form>
+
+              </div>
+            </details>
+          </section>
+
         </section>
 
-        <form method="post" class="edit-prices">
-          <div class="edit-prices__toolbar">
-            <button class="btn" type="submit">Zapisz zmiany</button>
-            <a class="btn btn--secondary" href="{{ url_for('shop') }}">Wróć do sklepu</a>
-          </div>
-
-          {% for cat_name, products in groups %}
-            <div class="edit-category">
-              <div class="edit-category__head">
-                <h2 class="h2 edit-category__title">{{ cat_name }}</h2>
-              </div>
-
-              <div class="edit-category__table">
-                {% for p in products %}
-                  <div class="edit-row">
-                    <div class="edit-row__main">
-                      <div class="edit-row__title">{{ p.title }}</div>
-
-                      <label class="edit-field">
-                        <div class="edit-field__label">Opis</div>
-                        <textarea
-                          class="form-input edit-row__desc-input"
-                          name="desc_{{ p.id }}"
-                          rows="3"
-                        >{{ p.description or p.title }}</textarea>
-                      </label>
-                    </div>
-
-                    <div class="edit-row__side">
-                      <label class="edit-field">
-                        <div class="edit-field__label">Cena</div>
-                        <div class="edit-row__price-wrap">
-                          <input
-                            class="form-input edit-row__price-input"
-                            type="text"
-                            name="price_{{ p.id }}"
-                            value="{{ '%.2f'|format(p.price_pln) }}"
-                            inputmode="decimal"
-                          >
-                          <span class="edit-row__currency">zł</span>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-                {% endfor %}
-              </div>
-            </div>
-          {% endfor %}
-
-          <div class="edit-prices__toolbar edit-prices__toolbar--bottom">
-            <button class="btn" type="submit">Zapisz zmiany</button>
-          </div>
-        </form>
       {% endif %}
     </section>
   </main>
 
 <script>
 (function(){
+  // Wizard (add product)
   const wizard = document.querySelector('[data-wizard]');
-  if(!wizard) return;
+  if(wizard){
+    const steps = Array.from(wizard.querySelectorAll('.wizard-step'));
+    const dots = Array.from(wizard.querySelectorAll('.wizard__dot'));
+    const btnPrev = wizard.querySelector('[data-prev]');
+    const btnNext = wizard.querySelector('[data-next]');
+    const btnSubmit = wizard.querySelector('[data-submit]');
+    let current = 1;
 
-  const steps = Array.from(wizard.querySelectorAll('.wizard-step'));
-  const dots = Array.from(wizard.querySelectorAll('.wizard__dot'));
-  const btnPrev = wizard.querySelector('[data-prev]');
-  const btnNext = wizard.querySelector('[data-next]');
-  const btnSubmit = wizard.querySelector('[data-submit]');
-
-  let current = 1;
-
-  function render(){
-    steps.forEach(s => s.classList.toggle('is-active', Number(s.dataset.step) === current));
-    dots.forEach(d => d.classList.toggle('is-active', Number(d.dataset.dot) === current));
-    btnPrev.disabled = current === 1;
-    if(current === steps.length){
-      btnNext.style.display = 'none';
-      btnSubmit.style.display = '';
-    } else {
-      btnNext.style.display = '';
-      btnSubmit.style.display = 'none';
-    }
-  }
-
-  function validateStep(){
-    const active = steps.find(s => Number(s.dataset.step) === current);
-    if(!active) return true;
-    const required = active.querySelectorAll('[required]');
-    for(const el of required){
-      if(el.type === 'file'){
-        if(!el.files || el.files.length === 0) return false;
-      } else if(!el.value || !el.value.trim()){
-        return false;
+    function render(){
+      steps.forEach(s => s.classList.toggle('is-active', Number(s.dataset.step) === current));
+      dots.forEach(d => d.classList.toggle('is-active', Number(d.dataset.dot) === current));
+      if(btnPrev) btnPrev.disabled = current === 1;
+      if(current === steps.length){
+        if(btnNext) btnNext.style.display = 'none';
+        if(btnSubmit) btnSubmit.style.display = '';
+      } else {
+        if(btnNext) btnNext.style.display = '';
+        if(btnSubmit) btnSubmit.style.display = 'none';
       }
     }
-    return true;
+
+    function validateStep(){
+      const active = steps.find(s => Number(s.dataset.step) === current);
+      if(!active) return true;
+      const required = active.querySelectorAll('[required]');
+      for(const el of required){
+        if(el.type === 'file'){
+          if(!el.files || el.files.length === 0) return false;
+        } else if(!el.value || !el.value.trim()){
+          return false;
+        }
+      }
+      return true;
+    }
+
+    if(btnPrev){
+      btnPrev.addEventListener('click', () => { if(current > 1){ current--; render(); } });
+    }
+    if(btnNext){
+      btnNext.addEventListener('click', () => {
+        if(!validateStep()){ alert('Uzupełnij pole, aby przejść dalej.'); return; }
+        if(current < steps.length){ current++; render(); }
+      });
+    }
+    render();
   }
 
-  btnPrev.addEventListener('click', () => {
-    if(current > 1){ current--; render(); }
-  });
-
-  btnNext.addEventListener('click', () => {
-    if(!validateStep()){
-      alert('Uzupełnij pole, aby przejść dalej.');
-      return;
+  // Confirmations
+  document.addEventListener('submit', (e) => {
+    const form = e.target;
+    if(!(form instanceof HTMLFormElement)) return;
+    const msg = form.getAttribute('data-confirm');
+    if(msg){
+      const ok = confirm(msg);
+      if(!ok) e.preventDefault();
     }
-    if(current < steps.length){ current++; render(); }
   });
 
-  render();
+  // Prevent toggling <details> when clicking controls inside <summary>
+  document.querySelectorAll('[data-stop-summary]').forEach((el) => {
+    el.addEventListener('click', (e) => e.stopPropagation());
+    el.addEventListener('mousedown', (e) => e.stopPropagation());
+  });
+
+  // Photo picker: custom button + filename + enable save
+  document.querySelectorAll('[data-photo-form]').forEach((form) => {
+    const file = form.querySelector('input[type="file"]');
+    const name = form.querySelector('[data-file-name]');
+    const submit = form.querySelector('[data-photo-submit]');
+    if(!file || !name || !submit) return;
+
+    file.addEventListener('change', () => {
+      const f = (file.files && file.files[0]) ? file.files[0].name : '';
+      name.textContent = f || 'Nie wybrano pliku';
+      submit.disabled = !f;
+    });
+  });
+
+  // Category photo: auto-submit on file select (keeps header clean)
+  document.querySelectorAll('[data-cat-photo]').forEach((form) => {
+    const file = form.querySelector('input[type="file"]');
+    if(!file) return;
+    file.addEventListener('change', () => {
+      if(file.files && file.files.length > 0){
+        form.requestSubmit();
+      }
+    });
+  });
+
+  // Add product in category (inline panel)
+  document.querySelectorAll('[data-add-product-btn]').forEach((btn) => {
+    const details = btn.closest('details');
+    if(!details) return;
+    const panel = details.querySelector('[data-cat-add]');
+    if(!panel) return;
+    const cancel = panel.querySelector('[data-cat-add-cancel]');
+
+    function toggle(open){
+      details.open = true;
+      panel.style.display = (open === undefined) ? (panel.style.display === 'none' ? 'block' : 'none') : ((open ? 'block' : 'none'));
+      if(panel.style.display !== 'none'){
+        const first = panel.querySelector('input, textarea, select');
+        if(first) first.focus({preventScroll:false});
+      }
+    }
+
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggle(undefined);
+    });
+
+    if(cancel){
+      cancel.addEventListener('click', (e) => {
+        e.preventDefault();
+        panel.style.display = 'none';
+      });
+    }
+  });
+
+  // Auto-save category name (no "Zmień nazwę" button)
+  const catRenameForms = Array.from(document.querySelectorAll('[data-cat-rename]'));
+  for(const f of catRenameForms){
+    const input = f.querySelector('[data-cat-input]');
+    if(!input) continue;
+    // Prevent details toggle when interacting with the input inside <summary>
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('keydown', (e) => {
+      // stop summary toggle on Space/Enter
+      e.stopPropagation();
+      if(e.key === 'Enter'){
+        e.preventDefault();
+        const v = (input.value || '').trim();
+        if(v) f.requestSubmit();
+      }
+    });
+
+    const initial = (input.value || '').trim();
+    input.addEventListener('blur', () => {
+      const v = (input.value || '').trim();
+      if(!v) { input.value = initial; return; }
+      if(v !== initial) f.requestSubmit();
+    });
+  }
+
+  // Search filter (categories + products)
+  const input = document.getElementById('adminSearch');
+  if(input){
+    const catCards = Array.from(document.querySelectorAll('[data-cat-card]'));
+    const prodCards = Array.from(document.querySelectorAll('[data-prod-card]'));
+
+    function apply(){
+      const q = (input.value || '').trim().toLowerCase();
+      if(!q){
+        // reset
+        catCards.forEach(c => c.style.display = '');
+        prodCards.forEach(p => p.style.display = '');
+        return;
+      }
+
+      // Filter products
+      prodCards.forEach(p => {
+        const hay = (p.getAttribute('data-search') || '');
+        const ok = hay.includes(q);
+        p.style.display = ok ? '' : 'none';
+      });
+
+      // Filter categories: show category if it has at least one visible product or matches name
+      catCards.forEach(cat => {
+        const nameInput = cat.querySelector('[data-cat-input]');
+        const name = (nameInput ? nameInput.value : '').toLowerCase();
+        const anyVisible = Array.from(cat.querySelectorAll('[data-prod-card]')).some(el => el.style.display !== 'none');
+        const ok = name.includes(q) || anyVisible;
+        cat.style.display = ok ? '' : 'none';
+        // auto-open matches for clarity
+        if(ok && anyVisible) cat.open = true;
+      });
+    }
+
+    input.addEventListener('input', apply);
+  }
 })();
 </script>
 

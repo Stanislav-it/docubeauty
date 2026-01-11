@@ -635,9 +635,20 @@ def create_app() -> Flask:
     os.makedirs(os.path.dirname(PRICE_OVERRIDES_PATH), exist_ok=True)
     DESCRIPTION_OVERRIDES_PATH = os.path.join(app.root_path, "data", "description_overrides.json")
     os.makedirs(os.path.dirname(DESCRIPTION_OVERRIDES_PATH), exist_ok=True)
+    TITLE_OVERRIDES_PATH = os.path.join(app.root_path, "data", "title_overrides.json")
+    os.makedirs(os.path.dirname(TITLE_OVERRIDES_PATH), exist_ok=True)
+    CATEGORY_OVERRIDES_PATH = os.path.join(app.root_path, "data", "category_overrides.json")
+    os.makedirs(os.path.dirname(CATEGORY_OVERRIDES_PATH), exist_ok=True)
 
     CUSTOM_PRODUCTS_PATH = os.path.join(app.root_path, "data", "custom_products.json")
     os.makedirs(os.path.dirname(CUSTOM_PRODUCTS_PATH), exist_ok=True)
+
+    CUSTOM_CATEGORIES_PATH = os.path.join(app.root_path, "data", "custom_categories.json")
+    DELETED_PRODUCTS_PATH = os.path.join(app.root_path, "data", "deleted_products.json")
+    PHOTO_OVERRIDES_PATH = os.path.join(app.root_path, "data", "photo_overrides.json")
+    os.makedirs(os.path.dirname(CUSTOM_CATEGORIES_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(DELETED_PRODUCTS_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(PHOTO_OVERRIDES_PATH), exist_ok=True)
 
     UPLOADS_DIR = os.path.join(app.root_path, "static", "uploads")
     os.makedirs(UPLOADS_DIR, exist_ok=True)
@@ -648,6 +659,11 @@ def create_app() -> Flask:
     DIGITAL_GOODS_DIR = os.path.join(app.root_path, "digital_goods")
     DIGITAL_MANIFEST = os.path.join(DIGITAL_GOODS_DIR, "manifest.json")
     DOWNLOAD_TTL_SECONDS = int(os.getenv("DOWNLOAD_TTL_SECONDS", "604800"))  # 7 days
+
+    # Custom product files must NOT be served from /static (otherwise they are downloadable without payment).
+    # We store them under DIGITAL_GOODS_DIR and serve only through /download/<token>.
+    CUSTOM_DIGITAL_DIR = os.path.join(DIGITAL_GOODS_DIR, "custom_uploads")
+    os.makedirs(CUSTOM_DIGITAL_DIR, exist_ok=True)
 
     def _serializer() -> URLSafeTimedSerializer:
         return URLSafeTimedSerializer(app.secret_key, salt="downloads-v1")
@@ -741,6 +757,30 @@ def create_app() -> Flask:
         if not ap.startswith(base):
             abort(400, "Invalid file path")
         return abs_path
+
+    def _move_to_custom_digital_storage(static_rel: str) -> str:
+        """Move a file from static/uploads/... into DIGITAL_GOODS_DIR/custom_uploads/ and return new relpath."""
+        rel = (static_rel or "").replace("\\", "/").lstrip("/")
+        # Typical values: "uploads/<name>.pdf" stored under static.
+        if rel.startswith("static/"):
+            rel = rel[len("static/"):]
+        if not rel.startswith("uploads/"):
+            return ""
+
+        src = os.path.join(app.static_folder, rel)
+        if not os.path.isfile(src):
+            return ""
+
+        ext = os.path.splitext(src)[1].lower() or ""
+        new_name = f"{uuid.uuid4().hex}{ext}"
+        dst = os.path.join(CUSTOM_DIGITAL_DIR, new_name)
+        try:
+            shutil.move(src, dst)
+        except Exception:
+            return ""
+
+        # relpath under DIGITAL_GOODS_DIR
+        return f"custom_uploads/{new_name}"
 
     # -------------------------
     # Image helpers
@@ -850,7 +890,274 @@ def create_app() -> Flask:
             os.replace(tmp_path, DESCRIPTION_OVERRIDES_PATH)
         except Exception:
             pass
+
+    # -------------------------
+    # Title overrides (simple JSON {product_id: title})
+    # -------------------------
+    def load_title_overrides() -> Dict[str, str]:
+        try:
+            with open(TITLE_OVERRIDES_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f) or {}
+        except FileNotFoundError:
+            return {}
+        except Exception:
+            return {}
+        clean: Dict[str, str] = {}
+        if isinstance(raw, dict):
+            for pid, val in raw.items():
+                try:
+                    key = str(pid)
+                    title = str(val).strip()
+                except Exception:
+                    continue
+                if title:
+                    clean[key] = title
+        return clean
+
+    def save_title_overrides(data: Dict[str, str]) -> None:
+        tmp_path = TITLE_OVERRIDES_PATH + ".tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, TITLE_OVERRIDES_PATH)
+        except Exception:
+            pass
+
+    def apply_title_overrides(products: List[Product], overrides: Dict[str, str]) -> List[Product]:
+        if not overrides:
+            return products
+        try:
+            from dataclasses import replace as _dc_replace
+        except Exception:
+            _dc_replace = None
+        result: List[Product] = []
+        for p in products:
+            new_title = overrides.get(p.id)
+            if new_title and _dc_replace is not None:
+                try:
+                    result.append(_dc_replace(p, title=str(new_title)))
+                    continue
+                except Exception:
+                    pass
+            result.append(p)
+        return result
+
+    def load_category_overrides() -> Dict[str, str]:
+        try:
+            with open(CATEGORY_OVERRIDES_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f) or {}
+        except FileNotFoundError:
+            return {}
+        except Exception:
+            return {}
+        clean: Dict[str, str] = {}
+        if isinstance(raw, dict):
+            for pid, val in raw.items():
+                try:
+                    key = str(pid)
+                    clean[key] = str(val)
+                except Exception:
+                    continue
+        return clean
+
+    def save_category_overrides(data: Dict[str, str]) -> None:
+        tmp_path = CATEGORY_OVERRIDES_PATH + ".tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, CATEGORY_OVERRIDES_PATH)
+        except Exception:
+            pass
+
+    def apply_category_overrides(products: List[Product], overrides: Dict[str, str]) -> List[Product]:
+        if not overrides:
+            return products
+        try:
+            from dataclasses import replace as _dc_replace
+        except Exception:
+            _dc_replace = None
+        if not _dc_replace:
+            return products
+        result: List[Product] = []
+        for p in products:
+            new_category = overrides.get(p.id)
+            if new_category is not None:
+                try:
+                    result.append(_dc_replace(p, category=str(new_category)))
+                    continue
+                except Exception:
+                    pass
+            result.append(p)
+        return result
+
+
+    def _load_json(path: str, default):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return default
+        except Exception:
+            return default
+
+    def _save_json(path: str, data) -> None:
+        tmp_path = path + ".tmp"
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, path)
+        except Exception:
+            pass
+
+    def load_custom_categories() -> List[str]:
+        raw = _load_json(CUSTOM_CATEGORIES_PATH, [])
+        if not isinstance(raw, list):
+            return []
+        out: List[str] = []
+        seen: set[str] = set()
+        for x in raw:
+            try:
+                name = str(x).strip()
+            except Exception:
+                continue
+            if not name:
+                continue
+            key = name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(name)
+        return out
+
+    def save_custom_categories(items: List[str]) -> None:
+        _save_json(CUSTOM_CATEGORIES_PATH, items)
+
+    def load_deleted_products() -> set[str]:
+        raw = _load_json(DELETED_PRODUCTS_PATH, [])
+        out: set[str] = set()
+        if isinstance(raw, list):
+            for x in raw:
+                try:
+                    pid = str(x).strip()
+                except Exception:
+                    continue
+                if pid:
+                    out.add(pid)
+        elif isinstance(raw, dict):
+            # backward compatible: {id: true}
+            for k, v in raw.items():
+                if v:
+                    out.add(str(k))
+        return out
+
+    def save_deleted_products(items: set[str]) -> None:
+        _save_json(DELETED_PRODUCTS_PATH, sorted(items))
+
+    def load_photo_overrides() -> Dict[str, str]:
+        raw = _load_json(PHOTO_OVERRIDES_PATH, {})
+        if not isinstance(raw, dict):
+            return {}
+        out: Dict[str, str] = {}
+        for k, v in raw.items():
+            try:
+                pid = str(k).strip()
+                rel = str(v).strip()
+            except Exception:
+                continue
+            if pid and rel:
+                out[pid] = rel
+        return out
+
+    def save_photo_overrides(items: Dict[str, str]) -> None:
+        _save_json(PHOTO_OVERRIDES_PATH, items)
+
+    def apply_photo_overrides(products: List[Product], overrides: Dict[str, str]) -> List[Product]:
+        if not overrides:
+            return products
+        try:
+            from dataclasses import replace as _dc_replace
+        except Exception:
+            _dc_replace = None
+        if not _dc_replace:
+            return products
+        out: List[Product] = []
+        for p in products:
+            rel = overrides.get(p.id)
+            if rel:
+                try:
+                    out.append(_dc_replace(p, images=(rel,), image_source="static"))
+                    continue
+                except Exception:
+                    pass
+            out.append(p)
+        return out
+
+    def apply_deleted_products(products: List[Product], deleted: set[str]) -> List[Product]:
+        if not deleted:
+            return products
+        return [p for p in products if str(p.id) not in deleted]
+
     def load_custom_products() -> List[Product]:
+        # One-time best-effort migration: move downloadable files out of /static/uploads
+        # into DIGITAL_GOODS_DIR/custom_uploads so they can't be downloaded without payment.
+        def _migrate_if_needed() -> None:
+            try:
+                with open(CUSTOM_PRODUCTS_PATH, "r", encoding="utf-8") as f:
+                    raw_local = json.load(f) or []
+            except FileNotFoundError:
+                return
+            except Exception:
+                return
+            if not isinstance(raw_local, list):
+                return
+
+            changed = False
+
+            for rec in raw_local:
+                if not isinstance(rec, dict):
+                    continue
+                rel = str(rec.get("file") or "").strip().replace("\\", "/")
+                if not rel:
+                    continue
+
+                # Already protected
+                if rel.startswith("custom_uploads/"):
+                    continue
+
+                # Legacy: stored under static/uploads
+                fn = ""
+                if rel.startswith("uploads/"):
+                    fn = rel.split("/", 1)[1]
+                elif rel.startswith("static/uploads/"):
+                    fn = rel.split("static/uploads/", 1)[1]
+                elif rel.startswith("/static/uploads/"):
+                    fn = rel.split("/static/uploads/", 1)[1]
+                if not fn:
+                    continue
+
+                old_abs = os.path.join(app.static_folder, "uploads", os.path.basename(fn))
+                if not os.path.isfile(old_abs):
+                    continue
+
+                ext = os.path.splitext(old_abs)[1].lower()
+                new_name = f"{uuid.uuid4().hex}{ext}"
+                new_abs = os.path.join(CUSTOM_DIGITAL_DIR, new_name)
+                try:
+                    os.replace(old_abs, new_abs)
+                except Exception:
+                    continue
+
+                rec["file"] = f"custom_uploads/{new_name}"
+                changed = True
+
+            if changed:
+                try:
+                    save_custom_products(raw_local)
+                except Exception:
+                    pass
+
+        _migrate_if_needed()
+
         try:
             with open(CUSTOM_PRODUCTS_PATH, "r", encoding="utf-8") as f:
                 raw = json.load(f) or []
@@ -896,6 +1203,97 @@ def create_app() -> Flask:
                 )
             )
         return items
+
+    def build_custom_category_cards(custom_products: List[Product], blocked_slugs: Optional[set[str]] = None) -> List[Product]:
+        """Build navigation-only cards for custom categories.
+
+        In DocuBeauty mode the main /shop page shows navigation cards (packages).
+        Custom categories should behave similarly (click -> filtered catalog view),
+        and can have an independent category thumbnail via photo override key: cat:<slug>.
+
+        IMPORTANT:
+        If a custom product uses a category name that already exists as a DocuBeauty category
+        (same slug), we must NOT create a duplicate custom category card. Otherwise the shop
+        will show two visually identical categories and the second one will pick the first
+        custom product image, which looks like the category thumbnail "changed".
+        """
+        # Collect names from explicit categories list + categories used by custom products.
+        names: List[str] = []
+        seen: set[str] = set()
+        for n in load_custom_categories():
+            nn = (n or "").strip()
+            if nn and nn.lower() not in seen:
+                names.append(nn)
+                seen.add(nn.lower())
+        for p in custom_products:
+            nn = (p.category or "").strip()
+            if nn and nn.lower() not in seen:
+                names.append(nn)
+                seen.add(nn.lower())
+
+        cards: List[Product] = []
+        if not names:
+            return cards
+
+        photo_overrides = load_photo_overrides()
+
+        # Choose a default image (first product image) if no override exists.
+        by_cat: Dict[str, List[Product]] = {}
+        for p in custom_products:
+            by_cat.setdefault((p.category or "").strip().lower(), []).append(p)
+
+        for name in names:
+            slug = slugify(name)
+
+            if blocked_slugs and slug in blocked_slugs:
+                # This category is already represented by a DocuBeauty category card (dbcat:<slug>).
+                # Let that card handle navigation and thumbnail overrides.
+                continue
+
+            pid = f"cat:{slug}"
+
+            override_img = str(photo_overrides.get(pid) or "").strip()
+            default_img = ""
+            if override_img:
+                default_img = override_img
+            else:
+                prods = by_cat.get(name.lower(), [])
+                if prods:
+                    hero = prods[0].primary_image() or ""
+                    if hero and prods[0].image_source == "static":
+                        default_img = hero
+
+            cards.append(
+                Product(
+                    id=pid,
+                    title=name,
+                    category="",  # navigation-only
+                    category_url="",
+                    price_pln=0.0,
+                    description="",
+                    images=(default_img,) if default_img else tuple(),
+                    image_source="static",
+                    source_url="",
+                )
+            )
+        return cards
+
+    def load_custom_products_raw() -> list:
+        """Load custom_products.json as raw list[dict] for in-place edits."""
+        try:
+            with open(CUSTOM_PRODUCTS_PATH, "r", encoding="utf-8") as f:
+                raw = json.load(f) or []
+        except FileNotFoundError:
+            return []
+        except Exception:
+            return []
+        if not isinstance(raw, list):
+            return []
+        out = []
+        for x in raw:
+            if isinstance(x, dict):
+                out.append(x)
+        return out
 
     def save_custom_products(raw: List[Dict[str, Any]]) -> None:
         tmp_path = CUSTOM_PRODUCTS_PATH + ".tmp"
@@ -955,112 +1353,142 @@ def create_app() -> Flask:
         return result
 
 
+
+
     def load_products() -> List[Product]:
-        """
-        Loads catalog from:
-        - export_all/products.json (preferred, parsed from 1cart)
-        - data/products.json (fallback demo)
-        """
         items: List[Product] = []
 
         price_overrides = load_price_overrides()
         desc_overrides = load_description_overrides()
+        title_overrides = load_title_overrides()
+        category_overrides = load_category_overrides()
+        photo_overrides = load_photo_overrides()
+        deleted_ids = load_deleted_products()
 
-        # If DocuBeauty catalog exists on this machine (default C:\produkty), use it as the shop source.
+        # Prefer DocuBeauty catalog if available
         docu_products = build_docubeauty_products(app.root_path)
         if docu_products:
-            base = list(docu_products) + list(load_custom_products())
-            prods = apply_price_overrides(base, price_overrides)
-            prods = apply_description_overrides(prods, desc_overrides)
-            return prods
-
-
-        if os.path.exists(EXPORT_PRODUCTS):
-            with open(EXPORT_PRODUCTS, "r", encoding="utf-8") as f:
-                raw = json.load(f)
-
-            for x in raw:
-                pid = str(x.get("product_id", "")).strip()
-                title = str(x.get("title", "")).strip()
-                if not pid or not title:
-                    continue
-
-                category = str(x.get("category_name", "Bez kategorii")).strip() or "Bez kategorii"
-                category_url = str(x.get("category_url", "")).strip()
-                description = str(x.get("description") or "").strip()
-
-                # normalize image_files to export_all/images relative
-                img_files = [str(p).replace("\\", "/") for p in (x.get("image_files") or [])]
-                rel_imgs: List[str] = []
-                for p in img_files:
-                    p = p.lstrip("/")
-                    if p.startswith("images/"):
-                        p = p[len("images/"):]
-                    if p:
-                        rel_imgs.append(p)
-
-                try:
-                    price_pln = float(x.get("price_pln") or 0.0)
-                except Exception:
-                    price_pln = 0.0
-
-                items.append(
-                    Product(
-                        id=pid,
-                        title=title,
-                        category=category,
-                        category_url=category_url,
-                        price_pln=price_pln,
-                        description=description,
-                        images=tuple(rel_imgs),
-                        image_source="media",
-                        source_url=str(x.get("url", "")).strip(),
-                    )
-                )
-
+            custom_prods = list(load_custom_products())
+            # Add navigation cards for custom categories (click -> /shop?category=...)
+            # so new categories behave like the built-in DocuBeauty packages.
+            # IMPORTANT: do not create a duplicate custom category card if a DocuBeauty
+            # category card with the same slug already exists. Otherwise the duplicate
+            # can appear to "take over" the category thumbnail (fallback = first product).
+            docu_slugs: set[str] = {p.docu_cat_slug for p in docu_products if p.docu_cat_slug and not p.docu_item_id}
+            custom_cat_cards = build_custom_category_cards(custom_prods, blocked_slugs=docu_slugs)
+            items = list(docu_products) + custom_cat_cards + custom_prods
+            items = apply_title_overrides(items, title_overrides)
+            items = apply_price_overrides(items, price_overrides)
+            items = apply_description_overrides(items, desc_overrides)
+            items = apply_category_overrides(items, category_overrides)
+            items = apply_photo_overrides(items, photo_overrides)
+            items = apply_deleted_products(items, deleted_ids)
             return items
 
-        # Fallback demo
-        if os.path.exists(FALLBACK_PRODUCTS):
-            with open(FALLBACK_PRODUCTS, "r", encoding="utf-8") as f:
-                raw = json.load(f)
+        # Export from parser (1cart)
+        if os.path.exists(EXPORT_PRODUCTS):
+            try:
+                with open(EXPORT_PRODUCTS, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+            except Exception:
+                raw = []
 
-            for x in raw:
-                pid = str(x.get("id", "")).strip()
-                title = str(x.get("name", "")).strip()
-                if not pid or not title:
-                    continue
-                try:
-                    price_pln = float(x.get("price") or 0.0)
-                except Exception:
-                    price_pln = 0.0
+            if isinstance(raw, list):
+                for x in raw:
+                    if not isinstance(x, dict):
+                        continue
+                    pid = str(x.get("product_id", "")).strip()
+                    title = str(x.get("title", "")).strip()
+                    if not pid or not title:
+                        continue
 
-                img = str(x.get("image", "")).strip()
-                items.append(
-                    Product(
-                        id=pid,
-                        title=title,
-                        category=str(x.get("category", "Bez kategorii")).strip() or "Bez kategorii",
-                        category_url="",
-                        price_pln=price_pln,
-                        description=str(x.get("description", "")).strip(),
-                        images=(img,) if img else tuple(),
-                        image_source="static",
-                        source_url="",
+                    category = str(x.get("category_name", "Bez kategorii")).strip() or "Bez kategorii"
+                    category_url = str(x.get("category_url", "")).strip()
+                    description = str(x.get("description") or "").strip()
+
+                    img_files = [str(p).replace("\\", "/") for p in (x.get("image_files") or [])]
+                    rel_imgs: List[str] = []
+                    for pth in img_files:
+                        pth = pth.lstrip("/")
+                        if pth.startswith("images/"):
+                            pth = pth[len("images/"):]
+                        if pth:
+                            rel_imgs.append(pth)
+
+                    try:
+                        price_pln = float(x.get("price_pln") or 0.0)
+                    except Exception:
+                        price_pln = 0.0
+
+                    items.append(
+                        Product(
+                            id=pid,
+                            title=title,
+                            category=category,
+                            category_url=category_url,
+                            price_pln=price_pln,
+                            description=description,
+                            images=tuple(rel_imgs),
+                            image_source="media",
+                            source_url=str(x.get("url", "")).strip(),
+                        )
                     )
-                )
 
+        # Fallback demo
+        if not items and os.path.exists(FALLBACK_PRODUCTS):
+            try:
+                with open(FALLBACK_PRODUCTS, "r", encoding="utf-8") as f:
+                    raw = json.load(f)
+            except Exception:
+                raw = []
+
+            if isinstance(raw, list):
+                for x in raw:
+                    if not isinstance(x, dict):
+                        continue
+                    pid = str(x.get("id", "")).strip()
+                    title = str(x.get("name", "")).strip()
+                    if not pid or not title:
+                        continue
+                    try:
+                        price_pln = float(x.get("price") or 0.0)
+                    except Exception:
+                        price_pln = 0.0
+
+                    img = str(x.get("image", "")).strip()
+                    items.append(
+                        Product(
+                            id=pid,
+                            title=title,
+                            category=str(x.get("category", "Bez kategorii")).strip() or "Bez kategorii",
+                            category_url="",
+                            price_pln=price_pln,
+                            description=str(x.get("description", "")).strip(),
+                            images=(img,) if img else tuple(),
+                            image_source="static",
+                            source_url="",
+                        )
+                    )
+
+        # Always include custom products
         items.extend(load_custom_products())
 
-        prods = apply_price_overrides(items, price_overrides)
-        prods = apply_description_overrides(prods, desc_overrides)
-        return prods
+        items = apply_title_overrides(items, title_overrides)
+        items = apply_price_overrides(items, price_overrides)
+        items = apply_description_overrides(items, desc_overrides)
+        items = apply_category_overrides(items, category_overrides)
+        items = apply_photo_overrides(items, photo_overrides)
+        items = apply_deleted_products(items, deleted_ids)
+        return items
 
     def get_catalog() -> List[Product]:
         return load_products()
 
     def get_categories(catalog: List[Product]) -> List[str]:
-        return sorted({p.category for p in catalog}, key=lambda x: x.lower())
+        cats = {p.category for p in catalog if (p.category or '').strip()}
+        for c in load_custom_categories():
+            cats.add(c)
+        return sorted(cats, key=lambda x: x.lower())
 
     # -------------------------
     # Cart
@@ -1167,11 +1595,7 @@ def create_app() -> Flask:
     def shop():
         catalog = get_catalog()
 
-        # DocuBeauty mode: show only category navigation cards on the main shop page.
-        # Individual sellable files are displayed inside each category page.
-        if any(p.docu_cat_slug for p in catalog):
-            # In DocuBeauty mode keep only category-cards and any custom products (exclude file-items).
-            catalog = [p for p in catalog if not p.docu_item_id]
+        is_docu_mode = any(p.docu_cat_slug for p in catalog)
 
         q = (request.args.get("q") or "").strip()
         cat = (request.args.get("category") or "").strip()  # slug
@@ -1198,13 +1622,34 @@ def create_app() -> Flask:
                     per_page = v
             except Exception:
                 pass
-
-        menu_source = catalog
+        # Category menu source:
+        # - In DocuBeauty mode: categories are navigation cards (dbcat:...) + custom category cards (cat:...).
+        # - Otherwise: categories are derived from product.category.
+        if is_docu_mode:
+            menu_source = [p for p in catalog if ((p.docu_cat_slug and not p.docu_item_id) or p.id.startswith("cat:"))]
+        else:
+            menu_source = catalog
 
         filtered = catalog
 
+        # DocuBeauty default view: show only category cards unless a category is selected.
+        if is_docu_mode and not cat:
+            filtered = list(menu_source)
+
         if cat:
-            filtered = [p for p in filtered if slugify(p.category) == cat]
+            def _cat_match(p: Product) -> bool:
+                # DocuBeauty category cards (dbcat:...) and custom category cards (cat:...) are
+                # matched by their title slug.
+                if (p.docu_cat_slug and not p.docu_item_id) or p.id.startswith("cat:"):
+                    return slugify(p.title) == cat
+                return slugify(p.category) == cat
+
+            filtered = [p for p in filtered if _cat_match(p)]
+
+            # In DocuBeauty mode when a category is selected, show only products/items inside it
+            # (hide the category card itself).
+            if is_docu_mode:
+                filtered = [p for p in filtered if not ((p.docu_cat_slug and not p.docu_item_id) or p.id.startswith("cat:"))]
 
         if q:
             ql = q.lower()
@@ -1226,7 +1671,7 @@ def create_app() -> Flask:
         menu_categories: List[Dict[str, str]] = []
         seen_slugs: set[str] = set()
         for p in menu_source:
-            if p.docu_cat_slug and not p.docu_item_id:
+            if (p.docu_cat_slug and not p.docu_item_id) or p.id.startswith("cat:"):
                 label = p.title
             else:
                 label = p.category
@@ -1310,6 +1755,11 @@ def create_app() -> Flask:
         if not p:
             return redirect(url_for("shop"))
 
+        # Navigation-only custom category cards.
+        if pid.startswith("cat:"):
+            slug = pid.split(":", 1)[1].strip()
+            return redirect(url_for("shop", category=slug))
+
         # DocuBeauty item-product: render a clean product page for a single file.
         if p.docu_cat_slug and p.docu_item_id:
             cat = get_docubeauty_category(app.root_path, p.docu_cat_slug)
@@ -1319,10 +1769,22 @@ def create_app() -> Flask:
             if not item:
                 return redirect(url_for("shop"))
 
-            thumb_rel = f"cards/items/{p.docu_cat_slug}/{p.docu_item_id}.png"
-            if os.path.exists(os.path.join(app.static_folder, thumb_rel)):
-                item = dict(item)
-                item["thumb_rel"] = thumb_rel
+            # Ensure item page reflects overrides (title/description/photo) stored on Product.
+            item = dict(item)
+
+            # Prefer product thumbnail if available (e.g., after admin photo update).
+            hero = p.primary_image()
+            if hero and p.image_source == "static":
+                item["thumb_rel"] = hero
+            else:
+                thumb_rel = f"cards/items/{p.docu_cat_slug}/{p.docu_item_id}.png"
+                if os.path.exists(os.path.join(app.static_folder, thumb_rel)):
+                    item["thumb_rel"] = thumb_rel
+
+            # Ensure displayed category name can be renamed via overrides.
+            docu_cat = dict(cat)
+            if p.category:
+                docu_cat["display_name"] = p.category
 
             return render_template(
                 "index.html",
@@ -1330,7 +1792,7 @@ def create_app() -> Flask:
                 title=p.title,
                 item=item,
                 p=p,
-                docu_cat=cat,
+                docu_cat=docu_cat,
             )
 
         # If this is a DocuBeauty category-product, load the included files to display on the page.
@@ -1349,15 +1811,53 @@ def create_app() -> Flask:
                 # attach optional preview card (if exists)
                 for it in raw_items:
                     it = dict(it)
-                    thumb_rel = f"cards/items/{p.docu_cat_slug}/{it.get('id')}.png"
-                    if os.path.exists(os.path.join(app.static_folder, thumb_rel)):
+                    item_id_str = str(it.get("id") or "").strip()
+
+                    # Default thumb: prebuilt card if exists
+                    thumb_rel = f"cards/items/{p.docu_cat_slug}/{item_id_str}.png"
+                    if item_id_str and os.path.exists(os.path.join(app.static_folder, thumb_rel)):
                         it["thumb_rel"] = thumb_rel
 
-                    prod = item_product_by_id.get(str(it.get("id") or ""))
+                    # If there is a sellable product for this file, prefer its (possibly overridden)
+                    # title/description/photo/price.
+                    prod = item_product_by_id.get(item_id_str)
                     if prod:
                         it["product_id"] = prod.id
                         it["price"] = prod.display_price()
+                        it["display"] = prod.title
+                        if prod.description:
+                            it["description"] = prod.description
+
+                        hero = prod.primary_image()
+                        if hero and prod.image_source == "static":
+                            it["thumb_rel"] = hero
                     docu_items.append(it)
+
+        download_url = None
+        # Only allow direct downloads after payment (verified with Stripe).
+        try:
+            paid_sid = str(session.get("paid_session_id") or "").strip()
+            paid_pids = set(session.get("paid_product_ids") or [])
+        except Exception:
+            paid_sid = ""
+            paid_pids = set()
+
+        if paid_sid and p.id in paid_pids and (p.download_file or ""):
+            try:
+                cs = verify_paid_checkout_session(paid_sid)
+                meta = getattr(cs, "metadata", {}) or {}
+                raw_ids = meta.get("product_ids") or "[]"
+                purchased = {str(x) for x in __import__("json").loads(raw_ids) if str(x)}
+                if p.id in purchased:
+                    tok = make_download_token(paid_sid, {"kind": "custom", "pid": p.id})
+                    download_url = url_for("download_file", token=tok)
+                else:
+                    # Stale session data; cleanup.
+                    session.pop("paid_session_id", None)
+                    session.pop("paid_product_ids", None)
+            except Exception:
+                # If Stripe verification fails, do not show download.
+                download_url = None
 
         return render_template(
             "index.html",
@@ -1366,6 +1866,7 @@ def create_app() -> Flask:
             p=p,
             docu_cat=docu_cat,
             docu_items=docu_items,
+            download_url=download_url,
         )
 
 
@@ -1405,18 +1906,37 @@ def create_app() -> Flask:
             )
 
         # Attach thumb_rel if exists (prebuilt cards)
-        thumb_rel = f"cards/items/{cat_slug}/{item_id}.png"
-        if os.path.exists(os.path.join(app.static_folder, thumb_rel)):
-            item = dict(item)
-            item["thumb_rel"] = thumb_rel
+        item = dict(item)
+
+        # Prefer the (possibly overridden) product title/description/photo.
+        if prod:
+            if prod.title:
+                item["display"] = prod.title
+            if prod.description:
+                item["description"] = prod.description
+
+            hero = prod.primary_image()
+            if hero and prod.image_source == "static":
+                item["thumb_rel"] = hero
+
+        # Fallback to prebuilt cards/items/... if product does not provide a thumb.
+        if not item.get("thumb_rel"):
+            thumb_rel = f"cards/items/{cat_slug}/{item_id}.png"
+            if os.path.exists(os.path.join(app.static_folder, thumb_rel)):
+                item["thumb_rel"] = thumb_rel
+
+        # Ensure the displayed category name reflects category overrides.
+        docu_cat = dict(cat)
+        if prod and prod.category:
+            docu_cat["display_name"] = prod.category
 
         return render_template(
             "index.html",
             view="docu_item",
-            title=item.get("display", "").rsplit("/", 1)[-1],
+            title=(prod.title if prod else item.get("display", "")).rsplit("/", 1)[-1],
             item=item,
             p=prod,
-            docu_cat=cat,
+            docu_cat=docu_cat,
         )
 
 
@@ -1448,125 +1968,567 @@ def create_app() -> Flask:
     # -------------------------
     # Simple admin page: edit product prices
     # -------------------------
+
     @app.route("/edit", methods=["GET", "POST"])
     def edit():
         # Very basic login with hardcoded credentials: sklep / sklep
-        is_admin = bool(session.get("is_admin"))
+        logged_in = bool(session.get("is_admin"))
+
+        def _save_upload(f, allowed_exts: set[str], *, dst_dir: str = UPLOADS_DIR, rel_prefix: str = "uploads/") -> str:
+            if not f or not getattr(f, "filename", ""):
+                return ""
+            name = secure_filename(f.filename)
+            ext = os.path.splitext(name)[1].lower()
+            if ext not in allowed_exts:
+                return ""
+            new_name = f"{uuid.uuid4().hex}{ext}"
+            dst = os.path.join(dst_dir, new_name)
+            try:
+                f.save(dst)
+            except Exception:
+                return ""
+            rel_prefix = (rel_prefix or "").replace("\\", "/")
+            if rel_prefix and not rel_prefix.endswith("/"):
+                rel_prefix += "/"
+            return f"{rel_prefix}{new_name}"
+
+        def _delete_static_rel(rel: str) -> None:
+            rel = (rel or "").strip()
+            if not rel:
+                return
+            if rel.startswith("http"):
+                return
+            fs_path = os.path.join(app.static_folder, rel.replace("/", os.sep))
+            if os.path.isfile(fs_path):
+                try:
+                    os.remove(fs_path)
+                except Exception:
+                    pass
+
+        def _delete_digital_rel(rel: str) -> None:
+            """Delete a file under DIGITAL_GOODS_DIR (best-effort)."""
+            rel = (rel or "").strip().replace("\\", "/").lstrip("/")
+            if not rel:
+                return
+            if ".." in rel.split("/"):
+                return
+            fs_path = os.path.join(DIGITAL_GOODS_DIR, rel.replace("/", os.sep))
+            base = os.path.abspath(DIGITAL_GOODS_DIR)
+            ap = os.path.abspath(fs_path)
+            if not ap.startswith(base):
+                return
+            if os.path.isfile(ap):
+                try:
+                    os.remove(ap)
+                except Exception:
+                    pass
+
+        def _delete_any_file_rel(rel: str) -> None:
+            rel = (rel or "").strip().replace("\\", "/")
+            if rel.startswith("custom_uploads/"):
+                _delete_digital_rel(rel)
+            else:
+                _delete_static_rel(rel)
+
+        def _build_groups_and_categories():
+            catalog = list(get_catalog())
+            grouped = {}
+            for p in catalog:
+                grouped.setdefault(p.category or "Bez kategorii", []).append(p)
+            for c in load_custom_categories():
+                grouped.setdefault(c, [])
+
+            groups = []
+            for cat_name in sorted(grouped.keys(), key=lambda x: x.lower()):
+                prods = sorted(grouped[cat_name], key=lambda p: p.title.lower())
+                view_prods = []
+                for p in prods:
+                    hero = p.primary_image()
+                    photo_url = None
+                    if hero:
+                        if p.image_source == "media":
+                            photo_url = url_for("media", filename=hero)
+                        else:
+                            photo_url = url_for("static", filename=hero)
+                    view_prods.append({
+                        "id": p.id,
+                        "title": p.title,
+                        "description": p.description,
+                        "price_pln": p.price_pln,
+                        "photo_url": photo_url,
+                        "category": p.category,
+                        "docu_cat_slug": getattr(p, "docu_cat_slug", "") or "",
+                        "docu_item_id": getattr(p, "docu_item_id", "") or "",
+                    })
+                groups.append((cat_name, view_prods))
+
+            categories = sorted(grouped.keys(), key=lambda x: x.lower())
+            return groups, categories
+
         if request.method == "POST":
-            if not is_admin:
+            if not logged_in:
                 username = (request.form.get("username") or "").strip()
                 password = (request.form.get("password") or "").strip()
                 if username == "sklep" and password == "sklep":
                     session["is_admin"] = True
                     return redirect(url_for("edit"))
-                else:
-                    return render_template(
-                        "edit.html",
-                        logged_in=False,
-                        login_error="Nieprawidłowy login lub hasło.",
-                    )
-            else:
-                # Save prices for all products visible on the page
-                # Save prices and descriptions for all products visible on the page
-                
-                action = (request.form.get("action") or "").strip()
+                return render_template(
+                    "edit.html",
+                    logged_in=False,
+                    login_error="Nieprawidłowy login lub hasło.",
+                )
 
-                # Add new custom product (title, photo, description, price, file)
-                if action == "add_product":
-                    title = (request.form.get("new_title") or "").strip()
-                    desc = (request.form.get("new_description") or "").strip()
-                    raw_price = (request.form.get("new_price") or "").strip()
-                    photo = request.files.get("new_photo")
-                    product_file = request.files.get("new_file")
+            action = (request.form.get("action") or "").strip()
 
-                    def _save_upload(f, allowed_exts: set[str]) -> str:
-                        if not f or not getattr(f, "filename", ""):
-                            return ""
-                        name = secure_filename(f.filename)
-                        ext = os.path.splitext(name)[1].lower()
-                        if ext not in allowed_exts:
-                            return ""
-                        new_name = f"{uuid.uuid4().hex}{ext}"
-                        dst = os.path.join(UPLOADS_DIR, new_name)
-                        f.save(dst)
-                        return f"uploads/{new_name}"
+            # ---------- Logout ----------
+            if action == "logout":
+                session.pop("is_admin", None)
+                return redirect(url_for("edit"))
 
+            # ---------- Category: add ----------
+            if action == "add_category":
+                name = (request.form.get("category_name") or "").strip()
+                if not name:
+                    return redirect(url_for("edit", error="Podaj nazwę kategorii."))
+
+                cats = load_custom_categories()
+                if name.lower() not in {c.lower() for c in cats}:
+                    cats.append(name)
+                    save_custom_categories(cats)
+                return redirect(url_for("edit", added_category=1))
+
+            # ---------- Category: rename ----------
+            if action == "cat_rename":
+                old_name = (request.form.get("old_name") or "").strip()
+                new_name = (request.form.get("new_name") or "").strip()
+                if not old_name or not new_name:
+                    return redirect(url_for("edit", error="Podaj starą i nową nazwę kategorii."))
+                if old_name == new_name:
+                    return redirect(url_for("edit"))
+
+                # Update stored categories list
+                cats = load_custom_categories()
+                replaced = False
+                out = []
+                for c in cats:
+                    if not replaced and c.lower() == old_name.lower():
+                        out.append(new_name)
+                        replaced = True
+                    else:
+                        out.append(c)
+                if not replaced and new_name.lower() not in {c.lower() for c in out}:
+                    out.append(new_name)
+                save_custom_categories(out)
+
+                # Update products currently assigned to old category
+                catalog = list(get_catalog())
+                cat_overrides = load_category_overrides()
+
+                # Also rewrite any existing overrides values equal to old_name
+                for pid, val in list(cat_overrides.items()):
+                    if str(val).strip().lower() == old_name.lower():
+                        cat_overrides[pid] = new_name
+
+                # Update custom products JSON
+                try:
+                    raw = []
+                    if os.path.exists(CUSTOM_PRODUCTS_PATH):
+                        with open(CUSTOM_PRODUCTS_PATH, "r", encoding="utf-8") as f:
+                            raw = json.load(f) or []
+                    if not isinstance(raw, list):
+                        raw = []
+                except Exception:
+                    raw = []
+
+                changed_custom = False
+                for rec in raw:
+                    if not isinstance(rec, dict):
+                        continue
+                    if str(rec.get("category") or "").strip().lower() == old_name.lower():
+                        rec["category"] = new_name
+                        changed_custom = True
+
+                for p in catalog:
+                    if str(p.category).strip().lower() != old_name.lower():
+                        continue
+                    if str(p.id).startswith("custom:"):
+                        cat_overrides.pop(str(p.id), None)
+                    else:
+                        cat_overrides[str(p.id)] = new_name
+
+                if changed_custom:
                     try:
-                        cleaned = raw_price.replace("zł", "").replace("ZŁ", "").replace(" ", "").replace(",", ".")
-                        price = float(cleaned) if cleaned else 0.0
+                        save_custom_products(raw)
                     except Exception:
-                        price = 0.0
+                        pass
+                save_category_overrides(cat_overrides)
 
-                    img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp"})
-                    file_rel = _save_upload(product_file, {".pdf", ".zip", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"})
+                # DocuBeauty: category cards are rendered from Product(title) (id: dbcat:<slug>).
+                # When renaming a category group (typically used for DocuBeauty item-products), also
+                # update the matching category-card title so the shop/category pages reflect the change.
+                try:
+                    title_overrides = load_title_overrides()
+                    for p in catalog:
+                        if str(p.id).startswith("dbcat:") and str(p.title).strip().lower() == old_name.lower():
+                            title_overrides[str(p.id)] = new_name
+                    save_title_overrides(title_overrides)
+                except Exception:
+                    pass
 
-                    if not title or price <= 0 or not img_rel or not file_rel:
-                        # Render edit page with an inline error
-                        catalog = get_catalog()
-                        grouped: Dict[str, List[Product]] = {}
-                        for p in catalog:
-                            grouped.setdefault(p.category, []).append(p)
-                        groups = []
-                        for cat_name in sorted(grouped.keys(), key=lambda x: x.lower()):
-                            prods = sorted(grouped[cat_name], key=lambda p: p.title.lower())
-                            groups.append((cat_name, prods))
+                # Move thumbnail override for custom category (cat:<slugified-name>)
+                try:
+                    photo_overrides = load_photo_overrides()
+                    old_key = f"cat:{slugify(old_name)}"
+                    new_key = f"cat:{slugify(new_name)}"
+                    if old_key in photo_overrides and new_key not in photo_overrides:
+                        photo_overrides[new_key] = photo_overrides.pop(old_key)
+                        save_photo_overrides(photo_overrides)
+                except Exception:
+                    pass
 
-                        return render_template(
-                            "edit.html",
-                            logged_in=True,
-                            groups=groups,
-                            saved=False,
-                            added=False,
-                            add_error="Wypełnij wszystkie pola: nazwa, zdjęcie, opis, cena oraz plik (np. PDF).",
-                        )
+                return redirect(url_for("edit"))
 
-                    pid = f"custom:{uuid.uuid4().hex}"
-                    record = {
-                        "id": pid,
-                        "title": title,
-                        "description": desc,
-                        "price_pln": price,
-                        "image": img_rel,
-                        "file": file_rel,
-                        "category": "Produkty",
-                        "created_at": int(time.time()),
-                    }
-                    append_custom_product(record)
-                    return redirect(url_for("edit", added=1))
+            # ---------- Category: delete ----------
+            if action == "cat_delete":
+                name = (request.form.get("name") or "").strip()
+                if not name:
+                    return redirect(url_for("edit"))
 
+                # remove from custom categories list
+                cats = [c for c in load_custom_categories() if c.lower() != name.lower()]
+                save_custom_categories(cats)
+
+                catalog = list(get_catalog())
+                cat_overrides = load_category_overrides()
                 price_overrides = load_price_overrides()
                 desc_overrides = load_description_overrides()
-                catalog = get_catalog()
+                photo_overrides = load_photo_overrides()
+                deleted_ids = load_deleted_products()
+
+                # delete custom products in this category
+                try:
+                    raw = []
+                    if os.path.exists(CUSTOM_PRODUCTS_PATH):
+                        with open(CUSTOM_PRODUCTS_PATH, "r", encoding="utf-8") as f:
+                            raw = json.load(f) or []
+                    if not isinstance(raw, list):
+                        raw = []
+                except Exception:
+                    raw = []
+
+                new_raw = []
+                for rec in raw:
+                    if not isinstance(rec, dict):
+                        continue
+                    if str(rec.get("category") or "").strip().lower() == name.lower():
+                        _delete_any_file_rel(str(rec.get("image") or ""))
+                        _delete_any_file_rel(str(rec.get("file") or ""))
+                        pid = str(rec.get("id") or "").strip()
+                        if pid:
+                            price_overrides.pop(pid, None)
+                            desc_overrides.pop(pid, None)
+                            cat_overrides.pop(pid, None)
+                            photo_overrides.pop(pid, None)
+                            deleted_ids.discard(pid)
+                        continue
+                    new_raw.append(rec)
+
+                try:
+                    save_custom_products(new_raw)
+                except Exception:
+                    pass
+
+                # for non-custom products -> move to 'Produkty'
+                for p in catalog:
+                    if str(p.category).strip().lower() == name.lower() and not str(p.id).startswith("custom:"):
+                        cat_overrides[str(p.id)] = "Produkty"
+
+                save_price_overrides(price_overrides)
+                save_description_overrides(desc_overrides)
+                save_category_overrides(cat_overrides)
+                save_photo_overrides(photo_overrides)
+                save_deleted_products(deleted_ids)
+
+                return redirect(url_for("edit", deleted_category=1))
+
+            # ---------- Category: photo update (category header button) ----------
+            # - DocuBeauty category groups (items) should update the *category card* product: dbcat:<slug>
+            # - Custom/regular categories can also store a thumbnail override under: cat:<slugified-name>
+            #   (used currently for admin/category thumbnail if needed).
+            if action == "cat_photo":
+                cat_slug = (request.form.get("cat_slug") or "").strip()
+                cat_name = (request.form.get("cat_name") or "").strip()
+                photo = request.files.get("photo")
+                if (not cat_slug and not cat_name) or not photo:
+                    return redirect(url_for("edit"))
+
+                img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp"})
+                if not img_rel:
+                    return redirect(url_for("edit", error="Nieprawidłowy plik zdjęcia."))
+
+                if cat_slug:
+                    pid = f"dbcat:{cat_slug}"
+                else:
+                    pid = f"cat:{slugify(cat_name)}"
+
+                overrides = load_photo_overrides()
+                old = str(overrides.get(pid) or "").strip()
+                if old and old != img_rel:
+                    _delete_static_rel(old)
+                overrides[pid] = img_rel
+                save_photo_overrides(overrides)
+
+                return redirect(url_for("edit", photo_updated=1))
+
+            # ---------- Product: add ----------
+            if action == "add_product":
+                title = (request.form.get("new_title") or "").strip()
+                desc = (request.form.get("new_description") or "").strip()
+                raw_price = (request.form.get("new_price") or "").strip()
+                category_label = (request.form.get("new_category") or "").strip() or "Produkty"
+                photo = request.files.get("new_photo")
+                product_file = request.files.get("new_file")
+
+                try:
+                    cleaned = raw_price.replace("zł", "").replace("ZŁ", "").replace(" ", "").replace(",", ".")
+                    price = float(cleaned) if cleaned else 0.0
+                except Exception:
+                    price = 0.0
+
+                img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp"})
+                # Downloadable file is stored outside /static to prevent free downloads.
+                file_rel = _save_upload(
+                    product_file,
+                    {".pdf", ".zip", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"},
+                    dst_dir=CUSTOM_DIGITAL_DIR,
+                    rel_prefix="custom_uploads",
+                )
+
+                if not title or price <= 0 or not img_rel or not file_rel:
+                    groups, categories = _build_groups_and_categories()
+                    return render_template(
+                        "edit.html",
+                        logged_in=True,
+                        groups=groups,
+                        categories=categories,
+                        saved=False,
+                        added=False,
+                        added_category=False,
+                        deleted_category=False,
+                        deleted_product=False,
+                        photo_updated=False,
+                        add_error="Wypełnij wszystkie pola: kategoria, nazwa, zdjęcie, opis, cena oraz plik (np. PDF).",
+                        error_message=None,
+                    )
+
+                pid = f"custom:{uuid.uuid4().hex}"
+                record = {
+                    "id": pid,
+                    "title": title,
+                    "description": desc,
+                    "price_pln": price,
+                    "image": img_rel,
+                    "file": file_rel,
+                    "category": category_label,
+                    "created_at": int(time.time()),
+                }
+                append_custom_product(record)
+
+                # Ensure category is visible in dropdown even if empty later
+                cats = load_custom_categories()
+                if category_label.lower() not in {c.lower() for c in cats}:
+                    cats.append(category_label)
+                    save_custom_categories(cats)
+
+                return redirect(url_for("edit", added=1))
+
+            # ---------- Product: delete ----------
+            if action == "product_delete":
+                pid = (request.form.get("product_id") or "").strip()
+                if pid:
+                    # custom product removal
+                    if pid.startswith("custom:"):
+                        try:
+                            raw = []
+                            if os.path.exists(CUSTOM_PRODUCTS_PATH):
+                                with open(CUSTOM_PRODUCTS_PATH, "r", encoding="utf-8") as f:
+                                    raw = json.load(f) or []
+                            if not isinstance(raw, list):
+                                raw = []
+                        except Exception:
+                            raw = []
+
+                        new_raw = []
+                        for rec in raw:
+                            if not isinstance(rec, dict):
+                                continue
+                            if str(rec.get("id") or "").strip() == pid:
+                                _delete_any_file_rel(str(rec.get("image") or ""))
+                                _delete_any_file_rel(str(rec.get("file") or ""))
+                                continue
+                            new_raw.append(rec)
+                        try:
+                            save_custom_products(new_raw)
+                        except Exception:
+                            pass
+                    else:
+                        deleted = load_deleted_products()
+                        deleted.add(pid)
+                        save_deleted_products(deleted)
+
+                    # cleanup overrides
+                    price_overrides = load_price_overrides()
+                    desc_overrides = load_description_overrides()
+                    title_overrides = load_title_overrides()
+                    cat_overrides = load_category_overrides()
+                    photo_overrides = load_photo_overrides()
+
+                    for d in (price_overrides, desc_overrides, title_overrides, cat_overrides, photo_overrides):
+                        d.pop(pid, None)
+
+                    save_price_overrides(price_overrides)
+                    save_description_overrides(desc_overrides)
+                    save_title_overrides(title_overrides)
+                    save_category_overrides(cat_overrides)
+                    save_photo_overrides(photo_overrides)
+
+                return redirect(url_for("edit", deleted_product=1))
+
+            # ---------- Product: photo update ----------
+            if action == "product_photo":
+                pid = (request.form.get("product_id") or "").strip()
+                photo = request.files.get("photo")
+                if not pid or not photo:
+                    return redirect(url_for("edit"))
+
+                img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp"})
+                if not img_rel:
+                    return redirect(url_for("edit", error="Nieprawidłowy plik zdjęcia."))
+
+                if pid.startswith("custom:"):
+                    try:
+                        raw = []
+                        if os.path.exists(CUSTOM_PRODUCTS_PATH):
+                            with open(CUSTOM_PRODUCTS_PATH, "r", encoding="utf-8") as f:
+                                raw = json.load(f) or []
+                        if not isinstance(raw, list):
+                            raw = []
+                    except Exception:
+                        raw = []
+
+                    for rec in raw:
+                        if not isinstance(rec, dict):
+                            continue
+                        if str(rec.get("id") or "").strip() == pid:
+                            old = str(rec.get("image") or "").strip()
+                            if old and old != img_rel:
+                                _delete_static_rel(old)
+                            rec["image"] = img_rel
+                    try:
+                        save_custom_products(raw)
+                    except Exception:
+                        pass
+                else:
+                    overrides = load_photo_overrides()
+                    overrides[pid] = img_rel
+                    save_photo_overrides(overrides)
+
+                return redirect(url_for("edit", photo_updated=1))
+
+
+            # ---------- Product update: price + description (per-card) ----------
+            if action == "product_update":
+                pid = (request.form.get("product_id") or "").strip()
+                if not pid:
+                    return redirect(url_for("edit", error="Brak ID produktu."))
+
+                raw_title = (request.form.get("title") or "").strip()
+                raw_price = (request.form.get("price") or "").strip()
+                raw_desc = (request.form.get("description") or "").strip()
+
+                # Normalize price
+                price_val = None
+                if raw_price != "":
+                    cleaned = raw_price.replace("zł", "").replace("ZŁ", "").replace(" ", "").replace(",", ".")
+                    try:
+                        price_val = float(cleaned)
+                    except Exception:
+                        price_val = None
+
+                # Custom product -> update in custom_products.json
+                if pid.startswith("custom:"):
+                    custom = load_custom_products_raw()
+                    found = False
+                    for cp in custom:
+                        if str(cp.get("id")) == pid:
+                            if raw_title != "":
+                                cp["title"] = raw_title
+                            if raw_desc != "":
+                                cp["description"] = raw_desc
+                            if price_val is not None:
+                                cp["price_pln"] = float(price_val)
+                            found = True
+                            break
+                    if found:
+                        save_custom_products(custom)
+                        return redirect(url_for("edit", product_saved="1"))
+                    return redirect(url_for("edit", error="Nie znaleziono produktu (custom)."))
+
+                # Regular product -> store overrides
+                if raw_title != "":
+                    title_overrides = load_title_overrides()
+                    title_overrides[pid] = raw_title
+                    save_title_overrides(title_overrides)
+
+                if raw_desc != "":
+                    desc_overrides = load_description_overrides()
+                    desc_overrides[pid] = raw_desc
+                    save_description_overrides(desc_overrides)
+
+                if price_val is not None:
+                    price_overrides = load_price_overrides()
+                    price_overrides[pid] = float(price_val)
+                    save_price_overrides(price_overrides)
+
+                return redirect(url_for("edit", product_saved="1"))
+
+            # ---------- Bulk update: price + description ----------
+            if action == "bulk_update":
+                price_overrides = load_price_overrides()
+                desc_overrides = load_description_overrides()
+                catalog = list(get_catalog())
+
                 changed_price = False
                 changed_desc = False
+
                 for p in catalog:
-                    # --- price ---
                     field_price = f"price_{p.id}"
                     if field_price in request.form:
                         raw_price = (request.form.get(field_price) or "").strip()
                         if raw_price:
-                            cleaned = (
-                                raw_price.replace("zł", "")
-                                .replace("ZŁ", "")
-                                .replace(" ", "")
-                                .replace(",", ".")
-                            )
+                            cleaned = raw_price.replace("zł", "").replace("ZŁ", "").replace(" ", "").replace(",", ".")
                             try:
                                 val = float(cleaned)
                             except Exception:
                                 val = None
-                            if val is not None and val > 0:
-                                if price_overrides.get(p.id) != val:
-                                    price_overrides[p.id] = val
-                                    changed_price = True
+                        else:
+                            val = None
 
-                    # --- description ---
+                        if val is None:
+                            if p.id in price_overrides:
+                                price_overrides.pop(p.id, None)
+                                changed_price = True
+                        else:
+                            if val > 0 and price_overrides.get(p.id) != val:
+                                price_overrides[p.id] = val
+                                changed_price = True
+
                     field_desc = f"desc_{p.id}"
                     if field_desc in request.form:
                         raw_desc = (request.form.get(field_desc) or "").strip()
                         if not raw_desc:
                             if p.id in desc_overrides:
-                                desc_overrides.pop(p.id)
+                                desc_overrides.pop(p.id, None)
                                 changed_desc = True
                         else:
                             if desc_overrides.get(p.id, "") != raw_desc:
@@ -1577,31 +2539,31 @@ def create_app() -> Flask:
                     save_price_overrides(price_overrides)
                 if changed_desc:
                     save_description_overrides(desc_overrides)
+
                 return redirect(url_for("edit", saved=1))
 
-        # GET: show login or editor
-        is_admin = bool(session.get("is_admin"))
-        if not is_admin:
+            return redirect(url_for("edit"))
+
+        # GET
+        logged_in = bool(session.get("is_admin"))
+        if not logged_in:
             return render_template("edit.html", logged_in=False)
 
-        catalog = get_catalog()
-        # Group products by category for easier editing
-        grouped: Dict[str, List[Product]] = {}
-        for p in catalog:
-            grouped.setdefault(p.category, []).append(p)
-        # Sort categories and products
-        groups = []
-        for cat_name in sorted(grouped.keys(), key=lambda x: x.lower()):
-            prods = sorted(grouped[cat_name], key=lambda p: p.title.lower())
-            groups.append((cat_name, prods))
-
+        groups, categories = _build_groups_and_categories()
         return render_template(
             "edit.html",
             logged_in=True,
             groups=groups,
+            categories=categories,
             saved=(request.args.get("saved") == "1"),
             added=(request.args.get("added") == "1"),
+            added_category=(request.args.get("added_category") == "1"),
+            deleted_category=(request.args.get("deleted_category") == "1"),
+            deleted_product=(request.args.get("deleted_product") == "1"),
+            photo_updated=(request.args.get("photo_updated") == "1"),
+            product_saved=(request.args.get("product_saved") == "1"),
             add_error=None,
+            error_message=((request.args.get("error_message") or request.args.get("error") or "") or None),
         )
 
     @app.get("/cart")
@@ -1684,6 +2646,9 @@ def create_app() -> Flask:
         except Exception:
             product_ids = []
 
+        # Keep last paid session in browser session so we can show download buttons on product pages.
+        session["paid_session_id"] = session_id
+        session["paid_product_ids"] = product_ids
 
         # Build download links for purchased items.
         # - DocuBeauty: products are categories (dbcat:<slug>), and we expose:
@@ -1692,9 +2657,9 @@ def create_app() -> Flask:
         # - Legacy: use digital_goods/manifest.json mapping.
         catalog = get_catalog()
         by_id = {p.id: p for p in catalog}
-
         docu_cats: List[Product] = []
         docu_items: List[Product] = []
+        custom_products: List[Product] = []
         legacy_product_ids: List[str] = []
 
         for pid in product_ids:
@@ -1703,6 +2668,8 @@ def create_app() -> Flask:
                 docu_items.append(p)
             elif p and p.docu_cat_slug and not p.docu_item_id:
                 docu_cats.append(p)
+            elif p and str(p.id).startswith("custom:"):
+                custom_products.append(p)
             else:
                 legacy_product_ids.append(pid)
 
@@ -1743,15 +2710,19 @@ def create_app() -> Flask:
             for it in list_docubeauty_items_for_category(cat):
                 token = make_download_token(session_id, {"kind": "docu", "cat": p.docu_cat_slug, "item": it.get("id")})
                 downloads.append({"name": f"{p.title} / {it.get('display')}", "url": url_for("download_file", token=token)})
+        # Custom product downloads (protected; served via /download/<token>)
+        for p in custom_products:
+            rel = (p.download_file or '').strip()
+            if not rel:
+                continue
+            token = make_download_token(session_id, {"kind": "custom", "pid": p.id})
+            this_url = url_for("download_file", token=token)
+            downloads.append({"name": p.title, "url": this_url})
+            if bundle_url is None and len(product_ids) == 1:
+                bundle_url = this_url
 
         # Legacy digital_goods downloads (manifest-based)
-        files: List[str] = []
-        bundle_file: Optional[str] = None
-        for pid in legacy_product_ids:
-            f_list, b_file = load_manifest_files_for_product(pid)
-            files.extend(f_list)
-            if b_file and not bundle_file:
-                bundle_file = b_file
+        files, bundle_file = resolve_files_for_products(legacy_product_ids)
 
         for rel in files:
             token = make_download_token(session_id, rel)
@@ -1760,7 +2731,7 @@ def create_app() -> Flask:
         if bundle_file and bundle_url is None:
             token = make_download_token(session_id, bundle_file)
             bundle_url = url_for("download_file", token=token)
-# clear cart only after verified payment
+        # clear cart only after verified payment
         session["cart"] = {}
 
         customer_email = None
@@ -1863,8 +2834,38 @@ def create_app() -> Flask:
             cached = ensure_cached_zip_member(app.root_path, cat, item)
             return send_file(cached, as_attachment=True, download_name=os.path.basename(cached))
 
+
+        # Custom product download (served from digital_goods/custom_uploads)
+        if kind == "custom":
+            pid = str(data.get("pid") or "").strip()
+            if not pid:
+                abort(400, "Invalid link")
+
+            # Verify the purchased products include this product id
+            purchased_ids: List[str] = []
+            try:
+                meta = getattr(cs, "metadata", {}) or {}
+                raw_ids = meta.get("product_ids") or "[]"
+                purchased_ids = [str(x) for x in json.loads(raw_ids) if str(x)]
+            except Exception:
+                purchased_ids = []
+
+            if pid not in purchased_ids:
+                abort(403, "Access denied")
+
+            catalog = get_catalog()
+            prod = next((p for p in catalog if p.id == pid), None)
+            if not prod or not (prod.download_file or '').strip():
+                abort(404, "File not found")
+
+            relpath = (prod.download_file or '').strip()
+            abs_path = safe_goods_path(relpath)
+            if not os.path.isfile(abs_path):
+                abort(404, "File not found")
+
+            return send_file(abs_path, as_attachment=True, download_name=os.path.basename(abs_path))
+
         # Legacy digital_goods file download (manifest-based)
-# Legacy digital_goods file download (manifest-based)
         relpath = str(data.get("p") or "").strip()
         if not relpath:
             abort(400, "Invalid link")
@@ -1903,6 +2904,10 @@ def create_app() -> Flask:
         if prod.docu_cat_slug and not prod.docu_item_id:
             return jsonify({"ok": False, "error": "Wybierz plik w środku kategorii"}), 400
 
+        # Custom category cards are navigation-only.
+        if prod.id.startswith("cat:"):
+            return jsonify({"ok": False, "error": "To jest kategoria, wybierz produkt"}), 400
+
         cart_data = get_cart()
         # DocuBeauty files are single-purchase items (no multi-quantity).
         if prod.docu_cat_slug and prod.docu_item_id:
@@ -1930,7 +2935,7 @@ def create_app() -> Flask:
 
         catalog = get_catalog()
         prod = next((p for p in catalog if p.id == pid), None)
-        if prod and prod.docu_cat_slug and not prod.docu_item_id:
+        if prod and ((prod.docu_cat_slug and not prod.docu_item_id) or prod.id.startswith("cat:")):
             # Prevent category cards from ending up in the cart.
             cart_data = get_cart()
             cart_data.pop(pid, None)

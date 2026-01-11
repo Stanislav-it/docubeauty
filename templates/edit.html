@@ -76,6 +76,20 @@
           {% endif %}
         </div>
 
+        <!-- Add category (top) -->
+        <section class="admin-panel admin-panel--addcat-top">
+          <div class="panel">
+            <div class="panel__body">
+              <form method="post" class="add-category">
+                <input type="hidden" name="action" value="add_category">
+                <label class="sr-only" for="newCategoryName">Nazwa kategorii</label>
+                <input class="form-input" id="newCategoryName" type="text" name="category_name" required placeholder="Nowa kategoria…" style="flex: 1 1 320px; min-width: 240px;">
+                <button class="btn" type="submit">Dodaj kategorię</button>
+              </form>
+            </div>
+          </div>
+        </section>
+
         <!-- Categories -->
         <section class="admin-content admin-content--flat" id="adminContent">
 
@@ -273,111 +287,18 @@
             {% endfor %}
           </div>
 
-          <!-- Add panels (collapsed by default, so they do not мешают) -->
-          <section class="admin-panel admin-panel--add">
-            <details class="panel">
-              <summary class="panel__summary">
-                <span class="panel__title">Dodawanie: kategorie i produkty</span>
-                <span class="panel__hint">kliknij, aby rozwinąć</span>
-              </summary>
+          <!-- Options -->
+          <section class="admin-panel admin-panel--options">
+            <div class="panel">
               <div class="panel__body">
-
-                <!-- Add category -->
-                <div class="add-block">
-                  <h2 class="h2">Dodaj nową kategorię</h2>
-                  <form method="post" class="add-category">
-                    <input type="hidden" name="action" value="add_category">
-                    <label class="edit-field" style="min-width:260px;">
-                      <div class="edit-field__label">Nazwa kategorii</div>
-                      <input class="form-input" type="text" name="category_name" required placeholder="Np. Dokumenty / Konsultacje">
-                    </label>
-                    <button class="btn" type="submit">Dodaj kategorię</button>
-                  </form>
-                </div>
-
-                <hr class="admin-hr">
-
-                <!-- Add product wizard (kept) -->
-                <div class="add-block">
-                  <h2 class="h2">Dodaj nowy produkt</h2>
-                  <form method="post" enctype="multipart/form-data" class="add-product" id="addProductForm">
-                    <input type="hidden" name="action" value="add_product">
-
-                    <div class="wizard" data-wizard>
-                      <div class="wizard__steps">
-                        <span class="wizard__dot is-active" data-dot="1"></span>
-                        <span class="wizard__dot" data-dot="2"></span>
-                        <span class="wizard__dot" data-dot="3"></span>
-                        <span class="wizard__dot" data-dot="4"></span>
-                        <span class="wizard__dot" data-dot="5"></span>
-                      </div>
-
-                      <div class="wizard-step is-active" data-step="1">
-                        <label class="edit-field">
-                          <div class="edit-field__label">Kategoria</div>
-                          <select class="form-input" name="new_category" required>
-                            <option value="" disabled selected>Wybierz kategorię...</option>
-                            {% for cat in categories %}
-                              <option value="{{ cat }}">{{ cat }}</option>
-                            {% endfor %}
-                          </select>
-                        </label>
-
-                        <label class="edit-field" style="margin-top:12px;">
-                          <div class="edit-field__label">Nazwa produktu</div>
-                          <input class="form-input" type="text" name="new_title" required placeholder="Np. Zabieg – pakiet dokumentacji">
-                        </label>
-                      </div>
-
-                      <div class="wizard-step" data-step="2">
-                        <label class="edit-field">
-                          <div class="edit-field__label">Zdjęcie (miniatura)</div>
-                          <input class="form-input" type="file" name="new_photo" accept="image/*" required>
-                        </label>
-                      </div>
-
-                      <div class="wizard-step" data-step="3">
-                        <label class="edit-field">
-                          <div class="edit-field__label">Opis</div>
-                          <textarea class="form-input" name="new_description" rows="6" placeholder="Opis produktu..."></textarea>
-                        </label>
-                      </div>
-
-                      <div class="wizard-step" data-step="4">
-                        <label class="edit-field">
-                          <div class="edit-field__label">Cena (PLN)</div>
-                          <input class="form-input" type="text" name="new_price" required placeholder="Np. 49.99" inputmode="decimal">
-                        </label>
-                      </div>
-
-                      <div class="wizard-step" data-step="5">
-                        <label class="edit-field">
-                          <div class="edit-field__label">Plik (PDF / ZIP / DOCX itp.)</div>
-                          <input class="form-input" type="file" name="new_file" required>
-                        </label>
-                        <div class="muted" style="margin-top:8px;">Po dodaniu produkt pojawi się w sklepie i w panelu edycji.</div>
-                      </div>
-
-                      <div class="wizard__actions">
-                        <button class="btn btn--secondary" type="button" data-prev>Wstecz</button>
-                        <button class="btn" type="button" data-next>Dalej</button>
-                        <button class="btn" type="submit" data-submit style="display:none;">Dodaj produkt</button>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-
-                <hr class="admin-hr">
-
-                <!-- Logout moved here (not in topbar) -->
                 <form method="post" class="logout-row">
                   <input type="hidden" name="action" value="logout">
                   <button class="btn btn--secondary" type="submit">Wyloguj</button>
                 </form>
-
               </div>
-            </details>
+            </div>
           </section>
+
 
         </section>
 
@@ -387,55 +308,6 @@
 
 <script>
 (function(){
-  // Wizard (add product)
-  const wizard = document.querySelector('[data-wizard]');
-  if(wizard){
-    const steps = Array.from(wizard.querySelectorAll('.wizard-step'));
-    const dots = Array.from(wizard.querySelectorAll('.wizard__dot'));
-    const btnPrev = wizard.querySelector('[data-prev]');
-    const btnNext = wizard.querySelector('[data-next]');
-    const btnSubmit = wizard.querySelector('[data-submit]');
-    let current = 1;
-
-    function render(){
-      steps.forEach(s => s.classList.toggle('is-active', Number(s.dataset.step) === current));
-      dots.forEach(d => d.classList.toggle('is-active', Number(d.dataset.dot) === current));
-      if(btnPrev) btnPrev.disabled = current === 1;
-      if(current === steps.length){
-        if(btnNext) btnNext.style.display = 'none';
-        if(btnSubmit) btnSubmit.style.display = '';
-      } else {
-        if(btnNext) btnNext.style.display = '';
-        if(btnSubmit) btnSubmit.style.display = 'none';
-      }
-    }
-
-    function validateStep(){
-      const active = steps.find(s => Number(s.dataset.step) === current);
-      if(!active) return true;
-      const required = active.querySelectorAll('[required]');
-      for(const el of required){
-        if(el.type === 'file'){
-          if(!el.files || el.files.length === 0) return false;
-        } else if(!el.value || !el.value.trim()){
-          return false;
-        }
-      }
-      return true;
-    }
-
-    if(btnPrev){
-      btnPrev.addEventListener('click', () => { if(current > 1){ current--; render(); } });
-    }
-    if(btnNext){
-      btnNext.addEventListener('click', () => {
-        if(!validateStep()){ alert('Uzupełnij pole, aby przejść dalej.'); return; }
-        if(current < steps.length){ current++; render(); }
-      });
-    }
-    render();
-  }
-
   // Confirmations
   document.addEventListener('submit', (e) => {
     const form = e.target;

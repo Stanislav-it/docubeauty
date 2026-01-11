@@ -1751,6 +1751,8 @@ def create_app() -> Flask:
     @app.get("/product/<pid>")
     def product(pid: str):
         catalog = get_catalog()
+        # Used to fully hide deleted products from DocuBeauty category pages and deep links.
+        deleted_ids = load_deleted_products()
         p = next((x for x in catalog if x.id == pid), None)
         if not p:
             return redirect(url_for("shop"))
@@ -1762,6 +1764,9 @@ def create_app() -> Flask:
 
         # DocuBeauty item-product: render a clean product page for a single file.
         if p.docu_cat_slug and p.docu_item_id:
+            # If an item was deleted in admin, treat it as non-existent.
+            if f"dbitem:{p.docu_cat_slug}:{p.docu_item_id}" in deleted_ids:
+                return redirect(url_for("shop"))
             cat = get_docubeauty_category(app.root_path, p.docu_cat_slug)
             if not cat:
                 return redirect(url_for("shop"))
@@ -1812,6 +1817,10 @@ def create_app() -> Flask:
                 for it in raw_items:
                     it = dict(it)
                     item_id_str = str(it.get("id") or "").strip()
+
+                    # If this file-product was deleted in admin, do not show it on the category page.
+                    if item_id_str and f"dbitem:{p.docu_cat_slug}:{item_id_str}" in deleted_ids:
+                        continue
 
                     # Default thumb: prebuilt card if exists
                     thumb_rel = f"cards/items/{p.docu_cat_slug}/{item_id_str}.png"
@@ -1873,6 +1882,11 @@ def create_app() -> Flask:
     @app.get("/docu/<cat_slug>/<item_id>")
     def docu_item_detail(cat_slug: str, item_id: str):
         """Detail page for a single file inside a DocuBeauty package."""
+        # If an admin deleted this item-product, hide the deep link as well.
+        deleted_ids = load_deleted_products()
+        if f"dbitem:{cat_slug}:{item_id}" in deleted_ids:
+            return redirect(url_for("shop"))
+
         cat = get_docubeauty_category(app.root_path, cat_slug)
         if not cat:
             return redirect(url_for("shop"))
@@ -1943,6 +1957,11 @@ def create_app() -> Flask:
     @app.get("/open/<cat_slug>/<item_id>")
     def docu_open_item(cat_slug: str, item_id: str):
         """Direct download for DocuBeauty item (folder file or extracted from ZIP)."""
+        # Deleted items must not be downloadable.
+        deleted_ids = load_deleted_products()
+        if f"dbitem:{cat_slug}:{item_id}" in deleted_ids:
+            abort(404)
+
         cat = get_docubeauty_category(app.root_path, cat_slug)
         if not cat:
             abort(404)
@@ -2194,6 +2213,47 @@ def create_app() -> Flask:
                 if not name:
                     return redirect(url_for("edit"))
 
+                # DocuBeauty category deletion:
+                # If the category exists as a DocuBeauty navigation card (dbcat:<slug>), deleting the category
+                # in admin should hide BOTH the category card and ALL its items (dbitem:<slug>:<id>).
+                # This makes "Usuń kategorię" behave predictably for DocuBeauty content.
+                try:
+                    docu = build_docubeauty_products(app.root_path)
+                    match_slug = ""
+                    for p0 in docu:
+                        if str(getattr(p0, "id", "")).startswith("dbcat:") and str(getattr(p0, "title", "")).strip().lower() == name.lower():
+                            match_slug = getattr(p0, "docu_cat_slug", "") or str(p0.id).split(":", 1)[1]
+                            break
+                    if match_slug:
+                        deleted = load_deleted_products()
+                        ids_to_clean = {f"dbcat:{match_slug}"}
+                        for p0 in docu:
+                            if getattr(p0, "docu_cat_slug", "") == match_slug and getattr(p0, "docu_item_id", ""):
+                                ids_to_clean.add(str(p0.id))
+
+                        for _id in ids_to_clean:
+                            deleted.add(_id)
+                        save_deleted_products(deleted)
+
+                        # cleanup overrides for removed docu IDs
+                        price_overrides = load_price_overrides()
+                        desc_overrides = load_description_overrides()
+                        title_overrides = load_title_overrides()
+                        cat_overrides = load_category_overrides()
+                        photo_overrides = load_photo_overrides()
+                        for _id in ids_to_clean:
+                            for d in (price_overrides, desc_overrides, title_overrides, cat_overrides, photo_overrides):
+                                d.pop(_id, None)
+                        save_price_overrides(price_overrides)
+                        save_description_overrides(desc_overrides)
+                        save_title_overrides(title_overrides)
+                        save_category_overrides(cat_overrides)
+                        save_photo_overrides(photo_overrides)
+
+                        return redirect(url_for("edit", deleted_category=1))
+                except Exception:
+                    pass
+
                 # remove from custom categories list
                 cats = [c for c in load_custom_categories() if c.lower() != name.lower()]
                 save_custom_categories(cats)
@@ -2372,19 +2432,36 @@ def create_app() -> Flask:
                         except Exception:
                             pass
                     else:
+                        # Mark as deleted (non-custom). If this is a DocuBeauty category card (dbcat:<slug>),
+                        # also hide all items (dbitem:<slug>:<id>) so the whole category disappears.
                         deleted = load_deleted_products()
-                        deleted.add(pid)
+                        ids_to_clean = {pid}
+
+                        if pid.startswith("dbcat:"):
+                            slug = pid.split(":", 1)[1]
+                            try:
+                                docu = build_docubeauty_products(app.root_path)
+                                for p0 in docu:
+                                    if getattr(p0, "docu_cat_slug", "") == slug and getattr(p0, "docu_item_id", ""):
+                                        ids_to_clean.add(str(p0.id))
+                            except Exception:
+                                pass
+
+                        for _id in ids_to_clean:
+                            deleted.add(_id)
                         save_deleted_products(deleted)
 
-                    # cleanup overrides
+                    # cleanup overrides (for the deleted ID(s))
                     price_overrides = load_price_overrides()
                     desc_overrides = load_description_overrides()
                     title_overrides = load_title_overrides()
                     cat_overrides = load_category_overrides()
                     photo_overrides = load_photo_overrides()
 
-                    for d in (price_overrides, desc_overrides, title_overrides, cat_overrides, photo_overrides):
-                        d.pop(pid, None)
+                    ids_to_clean = locals().get("ids_to_clean", {pid})
+                    for _id in ids_to_clean:
+                        for d in (price_overrides, desc_overrides, title_overrides, cat_overrides, photo_overrides):
+                            d.pop(_id, None)
 
                     save_price_overrides(price_overrides)
                     save_description_overrides(desc_overrides)

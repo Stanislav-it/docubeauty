@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "Dziękujemy" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css', v=static_version) }}">
+</head>
+<body>
+  <main class="main">
+    <section class="container">
+      <div class="receipt">
+        <header class="receipt__header">
+          <div class="receipt__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none">
+              <path d="M20 7L10 17l-5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="h1 receipt__title">Dziękujemy za zamówienie</h1>
+            {% if paid %}
+              <p class="receipt__subtitle">Twoja płatność została pomyślnie przetworzona przez Stripe (tryb testowy).</p>
+            {% else %}
+              <p class="receipt__subtitle">Nie udało się potwierdzić płatności. Jeśli wróciłeś z Stripe, upewnij się, że adres zawiera parametr <code>session_id</code>.</p>
+            {% endif %}
+          </div>
+        </header>
+
+        {% if paid %}
+          {% if customer_email %}
+            <div class="receipt__section">
+              <div class="receipt__section-title">Dane zamówienia</div>
+              <p class="receipt__subtitle" style="margin-top:10px;"><strong>E-mail:</strong> {{ customer_email }}</p>
+            </div>
+          {% endif %}
+
+          <div class="receipt__section">
+            <div class="receipt__section-title">Pliki do pobrania</div>
+
+            {% if downloads and downloads|length > 0 %}
+              <div class="file-list">
+                {% for d in downloads %}
+                  <div class="file-card">
+                    <div class="file-card__left">
+                      <div class="file-card__name">{{ d.name }}</div>
+                      <div class="file-card__meta">
+                        <span class="chip">Digital</span>
+                        <span class="chip chip--muted">Download</span>
+                      </div>
+                    </div>
+                    <div class="file-card__right">
+                      <a class="btn btn--outline btn--sm" href="{{ d.url }}" download>Pobierz</a>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+
+              <div class="receipt__actions">
+  {% if downloads and downloads|length == 1 %}
+    <a class="btn btn--primary" href="{{ downloads[0].url }}" download>Pobierz</a>
+  {% endif %}
+  <a class="btn btn--outline" href="{{ url_for('shop') }}">Wróć do sklepu</a>
+</div>
+
+<p class="receipt__hint">
+                Link działa na telefonie i na komputerze. Na każdym urządzeniu kliknij „Pobierz”, a plik zapisze się w Twoim folderze Pobrane/Downloads.
+              </p>
+            {% else %}
+              <p class="receipt__subtitle" style="margin-top:10px;">
+                Nie znaleziono plików do pobrania. Upewnij się, że pliki znajdują się w folderze <code>digital_goods/</code> oraz że mapowanie jest ustawione w <code>digital_goods/manifest.json</code>.
+              </p>
+
+              <div class="receipt__actions">
+                <a class="btn btn--outline" href="{{ url_for('shop') }}">Wróć do sklepu</a>
+              </div>
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="receipt__section">
+            <div class="receipt__actions">
+              <a class="btn btn--outline" href="{{ url_for('shop') }}">Wróć do sklepu</a>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </section>
+  </main>
+</body>
+</html>

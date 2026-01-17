@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="56" viewBox="0 0 220 56">
+  <rect width="220" height="56" fill="none"/>
+  <text x="0" y="40" font-family="Georgia, 'Times New Roman', serif" font-size="44" fill="#5b1f2b" letter-spacing="2">SHOP</text>
+  <circle cx="202" cy="24" r="12" fill="none" stroke="#5b1f2b" stroke-width="2"/>
+  <path d="M202 12 L202 24 L212 24" stroke="#5b1f2b" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>

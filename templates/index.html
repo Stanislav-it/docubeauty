@@ -1,0 +1,968 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title or "miakienko.designs" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css', v=static_version) }}">
+</head>
+<body>
+
+  <!-- Mobile top message -->
+  <div class="topbar mobile-only">
+    <div class="container topbar__inner">
+      <div class="topbar__msg">
+        Darmowa dostawa od 200zł na terenie PL<br>
+        Zamówienia do 12:00 wysyłamy tego samego dnia
+      </div>
+    </div>
+  </div>
+
+  <header class="header header--thin" id="siteHeader">
+    <div class="container">
+
+      <!-- DESKTOP HEADER -->
+      <div class="header__inner desktop-only">
+        <div class="header__left">
+          <nav class="nav-left" aria-label="Nawigacja">
+            <a class="nav-link" href="{{ url_for('shop') }}">PRODUKTY</a>
+            <a class="nav-link" href="{{ url_for('about') }}">O NAS</a>
+            <a class="nav-link" href="{{ url_for('contact') }}">KONTAKT</a>
+          </nav>
+
+          <div class="header-social">
+            <a class="social-icon" href="https://www.facebook.com/grafikareklamowapolska/?ref=_xav_ig_profile_page_web#" target="_blank" rel="noopener" aria-label="Facebook">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M14 8h2V5h-2c-2.2 0-4 1.8-4 4v2H8v3h2v7h3v-7h2.1l.9-3H13V9c0-.6.4-1 1-1Z" fill="currentColor"/>
+              </svg>
+            </a>
+
+            <a class="social-icon" href="https://www.instagram.com/miakienko.designs?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener" aria-label="Instagram">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Z" stroke="currentColor" stroke-width="2"/>
+                <path d="M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" stroke="currentColor" stroke-width="2"/>
+                <path d="M17.5 6.5h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <a class="brand" href="{{ url_for('shop') }}" aria-label="miakienko.designs">
+          <img class="brand__logo" src="{{ url_for('static', filename='logo.png') }}" alt="miakienko.designs">
+        </a>
+
+        <div class="header__right">
+          <form class="search search--desk" id="searchForm" action="{{ url_for('shop') }}" method="get" autocomplete="off">
+            {% if request.args.get('category') %}
+              <input type="hidden" name="category" value="{{ request.args.get('category') }}">
+            {% endif %}
+            <input class="search__input" id="searchInput" name="q" value="{{ request.args.get('q','') }}" placeholder="Szukaj..." autocomplete="off">
+            <button class="search__btn" type="submit" aria-label="Szukaj">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M10.5 19a8.5 8.5 0 1 1 0-17 8.5 8.5 0 0 1 0 17Z" stroke="currentColor" stroke-width="2"/>
+                <path d="M21 21l-4.2-4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <div class="search-dd" id="searchDD" hidden></div>
+          </form>
+
+          <a class="cart-mini cart-mini--desk" href="{{ url_for('cart') }}" aria-label="Koszyk">
+            <span class="cart-mini__icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M6 7h15l-2 9H7L6 7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M6 7 5 3H2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M9 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" fill="currentColor"/>
+                <path d="M18 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span class="cart-mini__text">
+              <span class="cart-mini__count" id="cartCount">{{ cart_count }}</span>
+              <span class="cart-mini__total" id="cartTotal">{{ cart_total }}</span>
+            </span>
+          </a>
+        </div>
+      </div>
+
+      <!-- MOBILE HEADER -->
+      <div class="mobile-header mobile-only" id="mobileHeader">
+        <div class="mobile-header__row">
+
+          <div class="mh-left">
+            <button class="mobile-ico" id="menuOpen" type="button" aria-label="Menu">
+              <img class="mobile-ico__img" src="{{ url_for('static', filename='menu.png') }}" alt="">
+            </button>
+          </div>
+
+          <a class="mobile-brand" href="{{ url_for('shop') }}" aria-label="miakienko.designs">
+            <img class="mobile-brand__img" src="{{ url_for('static', filename='logo.png') }}" alt="miakienko.designs">
+          </a>
+
+          <div class="mh-right">
+            <a class="mobile-cart" href="{{ url_for('cart') }}" aria-label="Koszyk">
+              <span class="mobile-cart__iconWrap" aria-hidden="true">
+                <img class="mobile-cart__img" src="{{ url_for('static', filename='cart.png') }}" alt="">
+                <span class="mobile-cart__badge" id="cartCountMobile">{{ cart_count }}</span>
+              </span>
+            </a>
+          </div>
+
+        </div>
+
+        <form class="mobile-search" id="mobileSearchForm" action="{{ url_for('shop') }}" method="get" autocomplete="off">
+          {% if request.args.get('category') %}
+            <input type="hidden" name="category" value="{{ request.args.get('category') }}">
+          {% endif %}
+          <input class="mobile-search__input" id="mobileSearchInput" name="q" value="{{ request.args.get('q','') }}" placeholder="Szukaj..." autocomplete="off">
+          <button class="mobile-search__btn" type="submit" aria-label="Szukaj">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M10.5 19a8.5 8.5 0 1 1 0-17 8.5 8.5 0 0 1 0 17Z" stroke="currentColor" stroke-width="2"/>
+              <path d="M21 21l-4.2-4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <div class="search-dd search-dd--mobile" id="mobileSearchDD" hidden></div>
+        </form>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MOBILE MENU OVERLAY -->
+  <div class="mobile-menu-overlay" id="mobileMenuOverlay" aria-hidden="true">
+    <div class="mobile-menu-panel">
+      <button class="mobile-menu-close" id="menuClose" type="button" aria-label="Zamknij">×</button>
+
+      <div class="mobile-menu-logo">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="miakienko.designs" height="52">
+      </div>
+
+      <div class="mobile-menu-links">
+        <a class="mobile-menu-link" href="{{ url_for('shop') }}">Strona główna</a>
+        <a class="mobile-menu-link" href="{{ url_for('shop') }}">Sklep</a>
+        <a class="mobile-menu-link" href="{{ url_for('about') }}">O nas</a>
+        <a class="mobile-menu-link" href="{{ url_for('contact') }}">Kontakt</a>
+      </div>
+
+      <div class="mobile-menu-social">
+        <a class="social-link" href="https://www.facebook.com/grafikareklamowapolska/?ref=_xav_ig_profile_page_web#" target="_blank" rel="noopener">
+          <span class="social-link__icon" aria-hidden="true">f</span>
+          <span class="social-link__text">facebook</span>
+        </a>
+        <a class="social-link" href="https://www.instagram.com/miakienko.designs?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank" rel="noopener">
+          <span class="social-link__icon" aria-hidden="true">◎</span>
+          <span class="social-link__text">instagram</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <main class="main">
+
+    {% if view == "shop" %}
+
+      <section class="container shop">
+        <div class="shop__head">
+          <h1 class="h1">Produkty</h1>
+
+          <div class="shop__sort">
+            <form class="select" id="sortForm" action="{{ url_for('shop') }}" method="get">
+              <span class="select__label">Domyślne sortowanie</span>
+
+              {% if q %}
+                <input type="hidden" name="q" value="{{ q }}">
+              {% endif %}
+              {% if active_category %}
+                <input type="hidden" name="category" value="{{ active_category }}">
+              {% endif %}
+
+              <select name="sort" id="sortSelect">
+                <option value="" {% if sort == "" %}selected{% endif %}>Domyślne sortowanie</option>
+                <option value="popularity" {% if sort == "popularity" %}selected{% endif %}>Sortuj wg popularności</option>
+                <option value="rating" {% if sort == "rating" %}selected{% endif %}>Sortuj wg średniej oceny</option>
+                <option value="newest" {% if sort == "newest" %}selected{% endif %}>Sortuj od najnowszych</option>
+                <option value="price_asc" {% if sort == "price_asc" %}selected{% endif %}>Sortuj po cenie od najniższej</option>
+                <option value="price_desc" {% if sort == "price_desc" %}selected{% endif %}>Sortuj po cenie od najwyższej</option>
+              </select>
+            </form>
+          </div>
+        </div>
+
+        {% if categories %}
+          <div class="shop__cats mobile-only">
+            <div class="shop-cats-strip">
+              <a class="cat-pill {% if not active_category %}is-active{% endif %}" href="{{ url_for('shop', q=q, sort=sort) }}">Wszystkie</a>
+              {% for cat in categories %}
+                <a class="cat-pill {% if active_category == cat.slug %}is-active{% endif %}" href="{{ url_for('shop', category=cat.slug, q=q, sort=sort) }}">{{ cat.label }}</a>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="shop__layout">
+        {% if categories %}
+        <aside class="sidebar desktop-only">
+          <div class="sidebar__title">Kategorie</div>
+          <nav>
+            <a class="cat-link {% if not active_category %}is-active{% endif %}" href="{{ url_for('shop', q=q, sort=sort) }}">Wszystkie</a>
+            {% for cat in categories %}
+              <a class="cat-link {% if active_category == cat.slug %}is-active{% endif %}" href="{{ url_for('shop', category=cat.slug, q=q, sort=sort) }}">{{ cat.label }}</a>
+            {% endfor %}
+          </nav>
+        </aside>
+        {% endif %}
+        <div class="shop__content">
+            <div class="grid">
+              {% if products|length == 0 %}
+                <div class="empty">
+                  <div class="empty__title">Brak wyników</div>
+                  <div class="empty__desc">Zmień kategorię lub usuń frazę wyszukiwania.</div>
+                </div>
+              {% endif %}
+
+              {% for p in products %}
+                <article class="card" id="{{ p.title|slug }}">
+                  <a class="card__img" href="{{ url_for('product', pid=p.id) }}">
+                    {% set hero = p.primary_image() %}
+                    {% if hero %}
+                      {% if p.image_source == "media" %}
+                        <img src="{{ url_for('media', filename=hero) }}" alt="{{ p.title }}" loading="lazy">
+                      {% else %}
+                        <img src="{{ url_for('static', filename=hero) }}" alt="{{ p.title }}" loading="lazy">
+                      {% endif %}
+                    {% else %}
+                      <div class="card__img--placeholder"></div>
+                    {% endif %}
+                  </a>
+
+                  {% if (p.docu_cat_slug and not p.docu_item_id) or p.id.startswith('cat:') %}
+                    <div class="card__meta">{% if p.id.startswith('cat:') %}KATEGORIA{% else %}PAKIET DOKUMENTACJI{% endif %}</div>
+                    <h3 class="card__title">
+                      <a href="{{ url_for('product', pid=p.id) }}">{{ p.title }}</a>
+                    </h3>
+                    <div class="card__actions">
+                      <a class="btn" href="{{ url_for('product', pid=p.id) }}">Zobacz</a>
+                    </div>
+                  {% else %}
+                    <div class="card__meta">{{ p.category|upper }}</div>
+                    <h3 class="card__title">
+                      <a href="{{ url_for('product', pid=p.id) }}">{{ p.title }}</a>
+                    </h3>
+
+                    <div class="card__price">{{ p.display_price() }}</div>
+
+                    <div class="card__actions">
+                      <button class="btn" type="button" data-add-to-cart="{{ p.id }}">Dodaj do koszyka</button>
+                    </div>
+                  {% endif %}
+                </article>
+              {% endfor %}
+            </div>
+
+            {% if pages and pages > 1 %}
+              <nav class="pagination" aria-label="Paginacja">
+                <a class="page-btn {% if page <= 1 %}is-disabled{% endif %}"
+                  href="{% if page > 1 %}{{ url_for('shop', q=q, category=active_category, sort=sort, page=page-1) }}{% else %}#{% endif %}">
+                  ‹
+                </a>
+
+                {% if 1 not in page_range %}
+                  <a class="page-btn" href="{{ url_for('shop', q=q, category=active_category, sort=sort, page=1) }}">1</a>
+                  <span class="page-ellipsis">…</span>
+                {% endif %}
+
+                {% for pno in page_range %}
+                  <a class="page-btn {% if pno == page %}is-active{% endif %}"
+                    href="{{ url_for('shop', q=q, category=active_category, sort=sort, page=pno) }}">{{ pno }}</a>
+                {% endfor %}
+
+                {% if pages not in page_range %}
+                  <span class="page-ellipsis">…</span>
+                  <a class="page-btn" href="{{ url_for('shop', q=q, category=active_category, sort=sort, page=pages) }}">{{ pages }}</a>
+                {% endif %}
+
+                <a class="page-btn {% if page >= pages %}is-disabled{% endif %}"
+                  href="{% if page < pages %}{{ url_for('shop', q=q, category=active_category, sort=sort, page=page+1) }}{% else %}#{% endif %}">
+                  ›
+                </a>
+              </nav>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+
+    {% elif view == "about" %}
+
+      <!-- HERO -->
+      <section class="about-hero" aria-label="O nas">
+        <img class="about-hero__img" src="{{ url_for('static', filename='im1.png') }}" alt="O nas">
+        <div class="about-hero__overlay" aria-hidden="true"></div>
+
+        <div class="container about-hero__content">
+          <h1 class="about-hero__title">O nas</h1>
+          <p class="about-hero__subtitle">
+            Profesjonalne produkty cyfrowe dla branży beauty
+          </p>
+        </div>
+      </section>
+
+      <!-- SECTION 1 -->
+      <section class="about-section container">
+        <div class="about-grid">
+          <div class="about-copy">
+            <h2 class="about-h2">Profesjonalne produkty cyfrowe dla branży beauty</h2>
+            <p>
+              Jesteśmy marką specjalizującą się w tworzeniu profesjonalnych produktów cyfrowych dla branży beauty,
+              wspierających właścicieli salonów kosmetycznych, gabinetów estetycznych oraz specjalistów wykonujących
+              zabiegi kosmetyczne i pielęgnacyjne.
+            </p>
+            <p>
+              Od 2022 roku zajmujemy się opracowywaniem dokumentacji zabiegowej zgodnej z obowiązującymi przepisami prawa,
+              dostosowanej do realnych potrzeb salonów beauty. Nasze doświadczenie pozwala nam tworzyć materiały, które są
+              nie tylko estetyczne, ale przede wszystkim bezpieczne, funkcjonalne i gotowe do wdrożenia w codziennej pracy salonu.
+            </p>
+          </div>
+
+          <div class="about-media">
+            <img class="about-img" src="{{ url_for('static', filename='im2.png') }}" alt="Profesjonalne materiały dla salonów beauty">
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2 -->
+      <section class="about-section about-section--muted">
+        <div class="container about-narrow">
+          <h2 class="about-h2">Dokumentacja zabiegowa dla salonów kosmetycznych</h2>
+          <p>W ofercie sklepu znajdują się m.in.:</p>
+          <ul class="about-list">
+            <li>karty klienta i karty zabiegowe,</li>
+            <li>formularze wywiadu kosmetycznego,</li>
+            <li>zgody na wykonanie zabiegów,</li>
+            <li>ankiety zdrowotne i dokumenty wymagane przy zabiegach kosmetycznych oraz estetycznych.</li>
+          </ul>
+
+          <p>Każdy dokument został przygotowany z myślą o:</p>
+          <ul class="about-list about-list--cols">
+            <li>zgodności z aktualnymi wymogami prawnymi, ochronie salonu i specjalisty,</li>
+            <li>bezpieczeństwie klienta,</li>
+            <li>profesjonalnym wizerunku salonu beauty.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- SECTION 3 -->
+      <section class="about-section container">
+        <div class="about-grid about-grid--reverse">
+          <div class="about-media">
+            <img class="about-img" src="{{ url_for('static', filename='im3.png') }}" alt="Produkty cyfrowe beauty">
+          </div>
+
+          <div class="about-copy">
+            <h2 class="about-h2">Produkty cyfrowe wspierające wizerunek salonu beauty</h2>
+            <p>
+              Oprócz dokumentacji zabiegowej oferujemy również inne produkty cyfrowe dla branży beauty, które pomagają
+              w budowaniu spójnej i profesjonalnej marki, takie jak:
+            </p>
+            <ul class="about-list">
+              <li>wzory certyfikatów i dyplomów,</li>
+              <li>plakaty beauty do salonów kosmetycznych,</li>
+              <li>ikony highlights na Instagram dla branży beauty,</li>
+              <li>materiały wspierające marketing salonu i komunikację z klientem.</li>
+            </ul>
+            <p>
+              Nasze produkty cyfrowe są tworzone z dbałością o estetykę, czytelność oraz aktualne trendy w branży beauty,
+              dzięki czemu wspierają nie tylko formalną stronę działalności, ale również rozpoznawalność i wiarygodność marki.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 4 -->
+      <section class="about-section about-section--muted">
+        <div class="container about-narrow">
+          <h2 class="about-h2">Dlaczego warto nam zaufać?</h2>
+          <ul class="about-list about-list--cols">
+            <li>doświadczenie w tworzeniu dokumentacji zabiegowej od 2022 roku,</li>
+            <li>produkty dopasowane do realiów pracy salonów beauty,</li>
+            <li>nacisk na zgodność z prawem i bezpieczeństwo,</li>
+            <li>szybki dostęp do gotowych rozwiązań cyfrowych,</li>
+            <li>wsparcie dla właścicieli salonów.</li>
+          </ul>
+
+          <div class="about-domain">
+            <p class="about-domain__q"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CTA -->
+      <section class="about-cta" aria-label="Odkryj nasze produkty">
+        <div class="container about-cta__inner">
+          <h2 class="about-cta__title">Odkryj nasze produkty</h2>
+          <p class="about-cta__desc">
+            Zobacz gotowe materiały cyfrowe, które uporządkują formalności w Twoim salonie i wesprą profesjonalny wizerunek marki.
+          </p>
+          <a class="btn about-cta__btn" href="{{ url_for('shop') }}">SPRAWDŹ</a>
+        </div>
+      </section>
+
+    {% elif view == "contact" %}
+
+      <section class="contact-band" aria-label="Kontakt">
+        <div class="container contact-band__inner">
+          <div class="contact-grid">
+            <div class="contact-item">
+              <div class="contact-ico">
+                <img src="{{ url_for('static', filename='map.png') }}" alt="" width="24" height="24">
+              </div>
+              <div class="contact-title">Adres</div>
+              <div class="contact-value">ul. Mieroszowska 18/3, 58-303 Wałbrzych</div>
+            </div>
+
+            <div class="contact-item">
+              <div class="contact-ico">
+                <img src="{{ url_for('static', filename='mail.png') }}" alt="" width="24" height="24">
+              </div>
+              <div class="contact-title">Email</div>
+              <div class="contact-value">
+                <a href="mailto:miakienkoanna95@wp.pl">miakienkoanna95@wp.pl</a>
+              </div>
+            </div>
+
+            <div class="contact-item">
+              <div class="contact-ico">
+                <img src="{{ url_for('static', filename='phone.png') }}" alt="" width="24" height="24">
+              </div>
+              <div class="contact-title">Telefon</div>
+              <div class="contact-value">
+                <a href="tel:+48536545240">536 545 240</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="contact-logo">
+        <div class="container contact-logo__inner">
+          <img src="{{ url_for('static', filename='logo.png') }}" alt="miakienko.designs" class="contact-logo__img">
+        </div>
+      </section>
+
+    
+{% elif view == "product" %}
+
+  {% if p.docu_cat_slug and not p.docu_item_id %}
+    <section class="container product product--docu">
+      <div class="product__topbar">
+        <a class="back-link" href="{{ url_for('shop') }}" aria-label="Wróć do listy">← Wróć</a>
+      </div>
+
+      <header class="product__header">
+        <h1 class="h1">{{ p.title }}</h1>
+      </header>
+
+      <div class="product__includes">
+        <h2 class="h2">Zawartość pakietu</h2>
+
+        {% set has_docu = (docu_items and docu_items|length > 0) %}
+        {% set has_custom = (custom_products and custom_products|length > 0) %}
+
+        {% if has_docu or has_custom %}
+          <div class="grid docu-items-grid">
+            {# Pliki (DocuBeauty) #}
+            {% if has_docu %}
+              {% for it in docu_items %}
+                <article class="card card--item">
+                  <a class="card__img" href="{{ url_for('docu_item_detail', cat_slug=p.docu_cat_slug, item_id=it.id) }}">
+                    {% if it.thumb_url %}
+                      <img src="{{ it.thumb_url }}" alt="{{ it.display.rsplit('/', 1)[-1] }}" loading="lazy">
+                    {% elif it.thumb_rel %}
+                      <img src="{{ url_for('static', filename=it.thumb_rel) }}" alt="{{ it.display.rsplit('/', 1)[-1] }}" loading="lazy">
+                    {% else %}
+                      <div class="card__img--placeholder"></div>
+                    {% endif %}
+                  </a>
+
+                  <div class="card__meta">{{ (it.ext or "")|upper }}</div>
+                  <h3 class="card__title">
+                    <a href="{{ url_for('docu_item_detail', cat_slug=p.docu_cat_slug, item_id=it.id) }}">{{ it.display.rsplit('/', 1)[-1] }}</a>
+                  </h3>
+
+                  <div class="card__price">{{ it.price or "" }}</div>
+
+                  <div class="card__actions">
+                    {% if it.product_id %}
+                      <button class="btn" type="button" data-add-to-cart="{{ it.product_id }}">Dodaj do koszyka</button>
+                    {% else %}
+                      <span class="muted">Brak ceny</span>
+                    {% endif %}
+                  </div>
+                </article>
+              {% endfor %}
+            {% endif %}
+
+            {# Produkty dodane w /edit (custom) — w tym samym gridzie i stylu #}
+            {% if has_custom %}
+              {% for cp in custom_products %}
+                <article class="card card--item" id="{{ cp.title|slug }}">
+                  <a class="card__img" href="{{ url_for('product', pid=cp.id) }}">
+                    {% set hero = cp.primary_image() %}
+                    {% if hero %}
+                      {% if cp.image_source == "media" %}
+                        <img src="{{ url_for('media', filename=hero) }}" alt="{{ cp.title }}" loading="lazy">
+                      {% else %}
+                        <img src="{{ url_for('static', filename=hero) }}" alt="{{ cp.title }}" loading="lazy">
+                      {% endif %}
+                    {% else %}
+                      <div class="card__img--placeholder"></div>
+                    {% endif %}
+                  </a>
+
+                  <div class="card__meta">PRODUKT</div>
+                  <h3 class="card__title">
+                    <a href="{{ url_for('product', pid=cp.id) }}">{{ cp.title }}</a>
+                  </h3>
+
+                  <div class="card__price">{{ cp.display_price() }}</div>
+
+                  <div class="card__actions">
+                    <button class="btn" type="button" data-add-to-cart="{{ cp.id }}">Dodaj do koszyka</button>
+                  </div>
+                </article>
+              {% endfor %}
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="muted">Brak plików w tej kategorii.</div>
+        {% endif %}
+      </div>
+    </section>
+
+  {% else %}
+    <section class="container product">
+      <div class="product__grid">
+        <div class="product__media">
+          {% set hero = p.primary_image() %}
+          {% if hero %}
+            {% if p.image_source == "media" %}
+              <img class="product__hero" src="{{ url_for('media', filename=hero) }}" alt="{{ p.title }}">
+            {% else %}
+              <img class="product__hero" src="{{ url_for('static', filename=hero) }}" alt="{{ p.title }}">
+            {% endif %}
+          {% else %}
+            <div class="product__placeholder"></div>
+          {% endif %}
+
+          {% if p.images|length > 1 %}
+            <div class="product__thumbs" aria-label="Galeria">
+              {% for img in p.images %}
+                {% if p.image_source == "media" %}
+                  <a class="thumb" href="{{ url_for('media', filename=img) }}" target="_blank" rel="noopener">
+                    <img src="{{ url_for('media', filename=img) }}" alt="{{ p.title }} – zdjęcie {{ loop.index }}" loading="lazy">
+                  </a>
+                {% else %}
+                  <a class="thumb" href="{{ url_for('static', filename=img) }}" target="_blank" rel="noopener">
+                    <img src="{{ url_for('static', filename=img) }}" alt="{{ p.title }} – zdjęcie {{ loop.index }}" loading="lazy">
+                  </a>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="product__info">
+          <div class="product__cat">{{ p.category }}</div>
+          <h1 class="h1">{{ p.title }}</h1>
+          <div class="product__price">{{ p.display_price() }}</div>
+
+          {% if p.description %}
+            <div class="product__desc">
+              {{ p.description | desc_html }}
+            </div>
+          {% endif %}
+
+          <div class="product__cta">
+            <button class="btn" type="button" data-add-to-cart="{{ p.id }}">Dodaj do koszyka</button>
+            {% if p.download_file %}
+        {% if download_url %}
+          <a class="btn btn--secondary" href="{{ download_url }}">Pobierz plik</a>
+        {% else %}
+          <div class="muted" style="margin:8px 0 0;">Plik będzie dostępny do pobrania po opłaceniu zamówienia.</div>
+        {% endif %}
+            {% endif %}
+            <a class="btn btn--outline" href="{{ url_for('shop') }}">Wróć do listy</a>
+          </div>
+
+          {% if p.source_url %}
+            <div class="product__source">
+              Źródło: <a href="{{ p.source_url }}" target="_blank" rel="noopener">strona produktu</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+
+{% elif view == "docu_item" %}
+
+  <section class="container product product--docuitem">
+    <div class="product__grid product__grid--tight">
+      <div class="product__media">
+        {% if item and item.thumb_rel %}
+          <img class="product__hero" src="{{ url_for('static', filename=item.thumb_rel) }}" alt="{{ p.title }}">
+        {% else %}
+          <div class="product__placeholder"></div>
+        {% endif %}
+      </div>
+
+      <div class="product__info">
+        {% if docu_cat %}
+          <div class="buybox__kicker">{{ docu_cat.display_name|upper }}</div>
+        {% endif %}
+        <h1 class="h1 buybox__title">{{ p.title }}</h1>
+        <div class="product__price buybox__price">{{ p.display_price() }}</div>
+
+        {% if p.description %}
+          <div class="product__desc">
+            {{ p.description | desc_html }}
+          </div>
+        {% endif %}
+
+        <div class="product__cta buybox__cta">
+          <button class="btn btn--buy" type="button" data-add-to-cart="{{ p.id }}">DODAJ DO KOSZYKA</button>
+        </div>
+
+        {% if p.docu_cat_slug %}
+          <a class="buybox__back" href="{{ url_for('product', pid='dbcat:' ~ p.docu_cat_slug) }}">Wróć do kategorii</a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+{% elif view == "cart" %}
+
+      <section class="container cart">
+        <h1 class="h1">Koszyk</h1>
+
+        {% if lines|length == 0 %}
+          <div class="empty">
+            <div class="empty__title">Koszyk jest pusty</div>
+            <div class="empty__desc">Dodaj produkty w sklepie, a pojawią się tutaj.</div>
+            <a class="btn" href="{{ url_for('shop') }}">Przejdź do sklepu</a>
+          </div>
+        {% else %}
+          <div class="cart__grid">
+            <div class="cart__table">
+              <div class="cart__row cart__head">
+                <div>Produkt</div>
+                <div class="cart__price cart__price--head">Cena</div>
+              </div>
+
+              {% for line in lines %}
+                <div class="cart__row" data-cart-line="{{ line.product.id }}">
+                  <div class="cart__prod">
+                    {% set hero = line.product.primary_image() %}
+                    {% if hero %}
+                      {% if line.product.image_source == "media" %}
+                        <img class="cart__thumb" src="{{ url_for('media', filename=hero) }}" alt="{{ line.product.title }}">
+                      {% else %}
+                        <img class="cart__thumb" src="{{ url_for('static', filename=hero) }}" alt="{{ line.product.title }}">
+                      {% endif %}
+                    {% endif %}
+
+                    <div>
+                      <a class="cart__name" href="{{ url_for('product', pid=line.product.id) }}">{{ line.product.title }}</a>
+                      <div class="cart__cat">{{ line.product.category }}</div>
+                      <button class="link" type="button" data-remove="{{ line.product.id }}">Usuń</button>
+                    </div>
+                  </div>
+
+                  <div class="cart__price"><strong>{{ line.unit|pln }}</strong></div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="cart__summary">
+              <div class="summary">
+                <div class="summary__row">
+                  <span>Suma</span>
+                  <strong id="cartSubtotal">{{ subtotal|pln }}</strong>
+                </div>
+
+                <div class="summary__note">
+                  Bezpieczna płatność online obsługiwana przez Stripe (tryb testowy).
+                </div>
+
+                <form method="post" action="{{ url_for('checkout') }}">
+                  <button class="btn btn--full" type="submit">Przejdź do płatności</button>
+                </form>
+                <button class="btn btn--outline btn--full" type="button" id="clearCart">Wyczyść koszyk</button>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      </section>
+
+    {% endif %}
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__links">
+        <a href="#" data-legal-open="regulamin">REGULAMIN</a>
+        <a href="#" data-legal-open="privacy">POLITYKA PRYWATNOŚCI</a>
+        <a href="#" data-legal-open="cookies">POLITYKA COOKIES</a>
+        <a href="#" data-legal-open="delivery">KOSZTY I TERMINY DOSTAW</a>
+        <a href="#" data-legal-open="returns">FORMULARZ ZWROTU</a>
+        <a href="{{ url_for('contact') }}">KONTAKT</a>
+        <a href="#" data-legal-open="account">MOJE KONTO</a>
+      </div>
+      <div class="footer__copy">© {{ 2025 }} • Szablon sklepu na Flasku</div>
+    </div>
+  </footer>
+
+  <!-- LEGAL MODALS (всё прямо в index.html) -->
+  <div class="legal-overlay" id="legalOverlay" aria-hidden="true"></div>
+
+  <section class="legal-modal" id="legal-regulamin" role="dialog" aria-modal="true" aria-labelledby="legal-regulamin-title" hidden>
+    <div class="legal-modal__card">
+      <div class="legal-modal__head">
+        <h2 class="legal-modal__title" id="legal-regulamin-title">Regulamin sklepu</h2>
+        <button class="legal-modal__close" type="button" data-legal-close aria-label="Zamknij">×</button>
+      </div>
+      <div class="legal-modal__body">
+        <div class="legal-note">
+          Uwaga: Poniższy regulamin ma charakter wzorcowy dla sklepu z produktami cyfrowymi. Dla pełnej zgodności prawnej dostosuj treść do modelu działalności (płatności, dostawy, zwroty, dane firmy).
+        </div>
+
+        <h3>1. Informacje ogólne</h3>
+        <p>
+          Sklep internetowy działa pod marką <strong>miakienko.designs</strong>. Niniejszy regulamin określa zasady korzystania ze sklepu,
+          składania zamówień, realizacji świadczeń, zasad reklamacji oraz odstąpienia od umowy.
+        </p>
+
+        <h3>2. Dane kontaktowe</h3>
+        <ul>
+          <li>E-mail: <a href="mailto:miakienkoanna95@wp.pl">miakienkoanna95@wp.pl</a></li>
+          <li>Telefon: <a href="tel:+48536545240">536 545 240</a></li>
+          <li>Adres: ul. Mieroszowska 18/3, 58-303 Wałbrzych</li>
+        </ul>
+
+        <h3>3. Definicje</h3>
+        <ul>
+          <li><strong>Klient</strong> – osoba fizyczna, prawna lub jednostka organizacyjna dokonująca zakupu.</li>
+          <li><strong>Produkt</strong> – produkt cyfrowy (np. pliki PDF, szablony) dostępny w sklepie.</li>
+          <li><strong>Umowa</strong> – umowa sprzedaży zawierana na odległość między Sprzedawcą a Klientem.</li>
+        </ul>
+
+        <h3>4. Składanie zamówień</h3>
+        <ul>
+          <li>Zamówienia można składać 24/7 poprzez stronę sklepu.</li>
+          <li>Klient wybiera produkty, dodaje do koszyka i finalizuje zamówienie zgodnie z instrukcjami.</li>
+          <li>Ceny podane są w PLN i zawierają wymagane podatki (jeżeli dotyczy).</li>
+        </ul>
+
+        <h3>5. Płatności</h3>
+        <p>
+          Dostępne metody płatności zależą od wdrożonego operatora płatności (np. przelew, BLIK, karta).
+          W wersji demonstracyjnej koszyk może nie realizować płatności.
+        </p>
+
+        <h3>6. Dostawa / udostępnienie produktów cyfrowych</h3>
+        <ul>
+          <li>Produkty cyfrowe są udostępniane niezwłocznie po zaksięgowaniu płatności (najczęściej automatycznie).</li>
+          <li>Udostępnienie może nastąpić poprzez link do pobrania lub wysyłkę na e-mail.</li>
+        </ul>
+
+        <h3>7. Odstąpienie od umowy (zwroty)</h3>
+        <p>
+          Zgodnie z przepisami, w przypadku treści cyfrowych dostarczanych w sposób niematerialny,
+          prawo odstąpienia może nie przysługiwać, jeżeli spełnianie świadczenia rozpoczęło się za wyraźną zgodą Klienta
+          przed upływem terminu do odstąpienia oraz po poinformowaniu o utracie prawa odstąpienia.
+        </p>
+
+        <h3>8. Reklamacje</h3>
+        <ul>
+          <li>Reklamacje dotyczące produktów cyfrowych (np. błędny plik, uszkodzony link) prosimy zgłaszać e-mailowo.</li>
+          <li>W zgłoszeniu podaj: numer zamówienia, opis problemu oraz oczekiwany sposób rozwiązania.</li>
+          <li>Reklamacje rozpatrywane są w rozsądnym terminie, nie dłuższym niż 14 dni.</li>
+        </ul>
+
+        <h3>9. Prawa autorskie</h3>
+        <p>
+          Produkty cyfrowe są chronione prawem autorskim. Zakup nie oznacza przeniesienia praw autorskich.
+          Zabrania się odsprzedaży, udostępniania osobom trzecim lub publicznego rozpowszechniania plików bez zgody Sprzedawcy.
+        </p>
+
+        <h3>10. Postanowienia końcowe</h3>
+        <p>
+          Sprzedawca może aktualizować regulamin z ważnych przyczyn (np. zmiana przepisów, funkcjonalności sklepu).
+          W sprawach nieuregulowanych zastosowanie mają przepisy prawa polskiego.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="legal-modal" id="legal-privacy" role="dialog" aria-modal="true" aria-labelledby="legal-privacy-title" hidden>
+    <div class="legal-modal__card">
+      <div class="legal-modal__head">
+        <h2 class="legal-modal__title" id="legal-privacy-title">Polityka prywatności</h2>
+        <button class="legal-modal__close" type="button" data-legal-close aria-label="Zamknij">×</button>
+      </div>
+      <div class="legal-modal__body">
+        <div class="legal-note">
+          Uwaga: Poniższa polityka ma charakter wzorcowy. Dostosuj ją do faktycznie używanych narzędzi (np. płatności, newsletter, analityka).
+        </div>
+
+        <h3>1. Administrator danych</h3>
+        <p>
+          Administratorem danych osobowych jest <strong>miakienko.designs</strong>.
+          Kontakt: <a href="mailto:miakienkoanna95@wp.pl">miakienkoanna95@wp.pl</a>.
+        </p>
+
+        <h3>2. Zakres przetwarzania</h3>
+        <p>Możemy przetwarzać dane takie jak: imię i nazwisko, e-mail, numer telefonu, adres, dane do faktury, a także dane techniczne (cookies, logi).</p>
+
+        <h3>3. Cele i podstawy prawne</h3>
+        <ul>
+          <li>Realizacja zamówień i umowy – art. 6 ust. 1 lit. b RODO.</li>
+          <li>Rozliczenia i obowiązki prawne – art. 6 ust. 1 lit. c RODO.</li>
+          <li>Kontakt i obsługa klienta – art. 6 ust. 1 lit. f RODO (uzasadniony interes).</li>
+          <li>Marketing (jeżeli dotyczy) – art. 6 ust. 1 lit. a lub f RODO.</li>
+        </ul>
+
+        <h3>4. Odbiorcy danych</h3>
+        <p>
+          Dane mogą być przekazywane podmiotom wspierającym działanie sklepu (np. hosting, operator płatności, dostawcy narzędzi IT),
+          wyłącznie w zakresie niezbędnym do realizacji usług.
+        </p>
+
+        <h3>5. Okres przechowywania</h3>
+        <ul>
+          <li>Dane związane z zamówieniami – przez okres wymagany przepisami (np. podatkowymi/księgowymi).</li>
+          <li>Dane kontaktowe – do czasu zakończenia korespondencji lub zgłoszenia sprzeciwu.</li>
+          <li>Dane marketingowe – do czasu cofnięcia zgody lub wniesienia sprzeciwu.</li>
+        </ul>
+
+        <h3>6. Prawa osoby, której dane dotyczą</h3>
+        <p>Przysługuje Ci prawo dostępu do danych, sprostowania, usunięcia, ograniczenia przetwarzania, przenoszenia, sprzeciwu oraz wniesienia skargi do UODO.</p>
+
+        <h3>7. Bezpieczeństwo</h3>
+        <p>Stosujemy środki techniczne i organizacyjne adekwatne do ryzyk, aby chronić dane przed nieuprawnionym dostępem.</p>
+
+        <h3>8. Kontakt</h3>
+        <p>W sprawach prywatności napisz na: <a href="mailto:miakienkoanna95@wp.pl">miakienkoanna95@wp.pl</a>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="legal-modal" id="legal-cookies" role="dialog" aria-modal="true" aria-labelledby="legal-cookies-title" hidden>
+    <div class="legal-modal__card">
+      <div class="legal-modal__head">
+        <h2 class="legal-modal__title" id="legal-cookies-title">Polityka cookies</h2>
+        <button class="legal-modal__close" type="button" data-legal-close aria-label="Zamknij">×</button>
+      </div>
+      <div class="legal-modal__body">
+        <div class="legal-note">
+          Uwaga: Jeśli używasz Google Analytics/Meta Pixel/Newsletter – dopisz nazwy narzędzi i podstawy prawne (zgody).
+        </div>
+
+        <h3>1. Czym są pliki cookies</h3>
+        <p>
+          Cookies to niewielkie pliki zapisywane na Twoim urządzeniu, które pomagają w działaniu strony,
+          analizie ruchu i personalizacji treści.
+        </p>
+
+        <h3>2. Rodzaje cookies</h3>
+        <ul>
+          <li><strong>Niezbędne</strong> – wymagane do podstawowego działania strony (np. koszyk/sesja).</li>
+          <li><strong>Funkcjonalne</strong> – zapamiętują ustawienia i preferencje.</li>
+          <li><strong>Analityczne</strong> – pomagają mierzyć ruch i ulepszać stronę (jeśli włączone).</li>
+          <li><strong>Marketingowe</strong> – wykorzystywane do dopasowania reklam (jeśli włączone).</li>
+        </ul>
+
+        <h3>3. Zarządzanie cookies</h3>
+        <p>
+          Możesz zmienić ustawienia cookies w przeglądarce. Ograniczenie cookies może wpłynąć na działanie niektórych funkcji sklepu.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="legal-modal" id="legal-delivery" role="dialog" aria-modal="true" aria-labelledby="legal-delivery-title" hidden>
+    <div class="legal-modal__card">
+      <div class="legal-modal__head">
+        <h2 class="legal-modal__title" id="legal-delivery-title">Koszty i terminy dostaw</h2>
+        <button class="legal-modal__close" type="button" data-legal-close aria-label="Zamknij">×</button>
+      </div>
+      <div class="legal-modal__body">
+        <h3>1. Produkty cyfrowe</h3>
+        <ul>
+          <li>Udostępnienie produktów cyfrowych następuje zwykle automatycznie po opłaceniu zamówienia.</li>
+          <li>W przypadku problemów z pobraniem, napisz na: <a href="mailto:miakienkoanna95@wp.pl">miakienkoanna95@wp.pl</a>.</li>
+        </ul>
+
+        <h3>2. Produkty fizyczne (jeśli pojawią się w ofercie)</h3>
+        <p>
+          Jeżeli w sklepie pojawią się produkty fizyczne, koszty i terminy dostawy będą wskazane w opisie produktu
+          oraz w koszyku podczas składania zamówienia.
+        </p>
+
+        <h3>3. Darmowa dostawa</h3>
+        <p>
+          Informacje o darmowej dostawie (np. od określonej kwoty) są komunikowane na stronie i mogą ulec zmianie.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="legal-modal" id="legal-returns" role="dialog" aria-modal="true" aria-labelledby="legal-returns-title" hidden>
+    <div class="legal-modal__card">
+      <div class="legal-modal__head">
+        <h2 class="legal-modal__title" id="legal-returns-title">Formularz zwrotu / odstąpienia od umowy</h2>
+        <button class="legal-modal__close" type="button" data-legal-close aria-label="Zamknij">×</button>
+      </div>
+      <div class="legal-modal__body">
+        <div class="legal-note">
+          W przypadku treści cyfrowych prawo odstąpienia może nie przysługiwać po rozpoczęciu spełniania świadczenia (zgodnie z regulaminem).
+          Jeśli jednak prowadzisz sprzedaż fizyczną – ten formularz będzie właściwy.
+        </div>
+
+        <p>Jeżeli chcesz odstąpić od umowy, możesz skorzystać z poniższego wzoru i przesłać go na e-mail: <a href="mailto:miakienkoanna95@wp.pl">miakienkoanna95@wp.pl</a>.</p>
+
+        <div class="return-form">
+          <div class="return-form__row"><strong>Imię i nazwisko:</strong> ................................................</div>
+          <div class="return-form__row"><strong>Adres e-mail:</strong> ................................................</div>
+          <div class="return-form__row"><strong>Numer telefonu:</strong> ................................................</div>
+          <div class="return-form__row"><strong>Numer zamówienia:</strong> ................................................</div>
+          <div class="return-form__row"><strong>Data zakupu:</strong> ................................................</div>
+          <div class="return-form__row"><strong>Nazwa produktu:</strong> ................................................</div>
+          <div class="return-form__row"><strong>Powód (opcjonalnie):</strong> ................................................</div>
+          <div class="return-form__row"><strong>Data i podpis:</strong> ................................................</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="legal-modal" id="legal-account" role="dialog" aria-modal="true" aria-labelledby="legal-account-title" hidden>
+    <div class="legal-modal__card">
+      <div class="legal-modal__head">
+        <h2 class="legal-modal__title" id="legal-account-title">Moje konto</h2>
+        <button class="legal-modal__close" type="button" data-legal-close aria-label="Zamknij">×</button>
+      </div>
+      <div class="legal-modal__body">
+        <p>
+          W obecnej wersji sklepu konto użytkownika może nie być wymagane do złożenia zamówienia (wdrożenie zależy od integracji płatności i panelu klienta).
+        </p>
+        <p>
+          Jeżeli potrzebujesz faktury, ponownego dostępu do plików lub pomocy technicznej – napisz na:
+          <a href="mailto:miakienkoanna95@wp.pl">miakienkoanna95@wp.pl</a>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="{{ url_for('static', filename='js/main.js', v=static_version) }}"></script>
+</body>
+</html>

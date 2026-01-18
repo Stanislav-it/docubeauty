@@ -11,7 +11,6 @@ import uuid
 import shutil
 import posixpath
 import zipfile
-from io import BytesIO
 import hashlib
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -31,6 +30,7 @@ from flask import (
 from markupsafe import Markup, escape
 
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+
 
 
 
@@ -630,83 +630,33 @@ def create_app() -> Flask:
     EXPORT_DIR = os.path.join(app.root_path, "export_all")
     EXPORT_PRODUCTS = os.path.join(EXPORT_DIR, "products.json")
     EXPORT_IMAGES = os.path.join(EXPORT_DIR, "images")
-
-    # -------------------------
-    # Persistent storage (Render Disk)
-    # -------------------------
-    # If NOTES_DATA_DIR is set (e.g. /var/data on Render), ALL admin state (JSON + uploads)
-    # is read/written there. If not set, fall back to app.root_path for local dev.
-    NOTES_DATA_DIR = (os.getenv("NOTES_DATA_DIR") or "").strip()
-    PERSIST_ROOT = NOTES_DATA_DIR if NOTES_DATA_DIR else app.root_path
-    PERSIST_DATA_DIR = os.path.join(PERSIST_ROOT, "data")
-    UPLOADS_DIR = os.path.join(PERSIST_ROOT, "uploads")
-    DIGITAL_GOODS_DIR = os.path.join(PERSIST_ROOT, "digital_goods")
-
-    os.makedirs(PERSIST_DATA_DIR, exist_ok=True)
-    os.makedirs(UPLOADS_DIR, exist_ok=True)
-    os.makedirs(DIGITAL_GOODS_DIR, exist_ok=True)
-
-    # One-time best-effort migration from repo directories to persistent disk.
-    def _migrate_if_missing(src: str, dst: str) -> None:
-        try:
-            if os.path.exists(dst):
-                return
-            if not os.path.exists(src):
-                return
-            os.makedirs(os.path.dirname(dst), exist_ok=True)
-            shutil.copy2(src, dst)
-        except Exception:
-            return
-
-    # Copy known JSON state files into persistent storage if they don't exist yet.
-    _repo_data_dir = os.path.join(app.root_path, "data")
-    for _name in [
-        "price_overrides.json",
-        "description_overrides.json",
-        "title_overrides.json",
-        "category_overrides.json",
-        "custom_products.json",
-        "custom_categories.json",
-        "deleted_products.json",
-        "photo_overrides.json",
-    ]:
-        _migrate_if_missing(os.path.join(_repo_data_dir, _name), os.path.join(PERSIST_DATA_DIR, _name))
-
-    # Copy digital_goods (manifest + default files) on first run if disk is empty.
-    try:
-        _repo_goods = os.path.join(app.root_path, "digital_goods")
-        _disk_goods = DIGITAL_GOODS_DIR
-        if os.path.isdir(_repo_goods) and (not os.path.exists(os.path.join(_disk_goods, "manifest.json"))):
-            # Only copy if disk doesn't already have a manifest.
-            for root, dirs, files in os.walk(_repo_goods):
-                rel = os.path.relpath(root, _repo_goods)
-                dst_root = _disk_goods if rel == "." else os.path.join(_disk_goods, rel)
-                os.makedirs(dst_root, exist_ok=True)
-                for fn in files:
-                    src = os.path.join(root, fn)
-                    dst = os.path.join(dst_root, fn)
-                    if not os.path.exists(dst):
-                        try:
-                            shutil.copy2(src, dst)
-                        except Exception:
-                            pass
-    except Exception:
-        pass
-
     FALLBACK_PRODUCTS = os.path.join(app.root_path, "data", "products.json")
+    PRICE_OVERRIDES_PATH = os.path.join(app.root_path, "data", "price_overrides.json")
+    os.makedirs(os.path.dirname(PRICE_OVERRIDES_PATH), exist_ok=True)
+    DESCRIPTION_OVERRIDES_PATH = os.path.join(app.root_path, "data", "description_overrides.json")
+    os.makedirs(os.path.dirname(DESCRIPTION_OVERRIDES_PATH), exist_ok=True)
+    TITLE_OVERRIDES_PATH = os.path.join(app.root_path, "data", "title_overrides.json")
+    os.makedirs(os.path.dirname(TITLE_OVERRIDES_PATH), exist_ok=True)
+    CATEGORY_OVERRIDES_PATH = os.path.join(app.root_path, "data", "category_overrides.json")
+    os.makedirs(os.path.dirname(CATEGORY_OVERRIDES_PATH), exist_ok=True)
 
-    # Admin state JSONs (ALWAYS on disk when NOTES_DATA_DIR is set)
-    PRICE_OVERRIDES_PATH = os.path.join(PERSIST_DATA_DIR, "price_overrides.json")
-    DESCRIPTION_OVERRIDES_PATH = os.path.join(PERSIST_DATA_DIR, "description_overrides.json")
-    TITLE_OVERRIDES_PATH = os.path.join(PERSIST_DATA_DIR, "title_overrides.json")
-    CATEGORY_OVERRIDES_PATH = os.path.join(PERSIST_DATA_DIR, "category_overrides.json")
-    CUSTOM_PRODUCTS_PATH = os.path.join(PERSIST_DATA_DIR, "custom_products.json")
-    CUSTOM_CATEGORIES_PATH = os.path.join(PERSIST_DATA_DIR, "custom_categories.json")
-    DELETED_PRODUCTS_PATH = os.path.join(PERSIST_DATA_DIR, "deleted_products.json")
-    PHOTO_OVERRIDES_PATH = os.path.join(PERSIST_DATA_DIR, "photo_overrides.json")
+    CUSTOM_PRODUCTS_PATH = os.path.join(app.root_path, "data", "custom_products.json")
+    os.makedirs(os.path.dirname(CUSTOM_PRODUCTS_PATH), exist_ok=True)
+
+    CUSTOM_CATEGORIES_PATH = os.path.join(app.root_path, "data", "custom_categories.json")
+    DELETED_PRODUCTS_PATH = os.path.join(app.root_path, "data", "deleted_products.json")
+    PHOTO_OVERRIDES_PATH = os.path.join(app.root_path, "data", "photo_overrides.json")
+    os.makedirs(os.path.dirname(CUSTOM_CATEGORIES_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(DELETED_PRODUCTS_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(PHOTO_OVERRIDES_PATH), exist_ok=True)
+
+    UPLOADS_DIR = os.path.join(app.root_path, "static", "uploads")
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
+
     # -------------------------
     # Digital goods (downloads after payment)
     # -------------------------
+    DIGITAL_GOODS_DIR = os.path.join(app.root_path, "digital_goods")
     DIGITAL_MANIFEST = os.path.join(DIGITAL_GOODS_DIR, "manifest.json")
     DOWNLOAD_TTL_SECONDS = int(os.getenv("DOWNLOAD_TTL_SECONDS", "604800"))  # 7 days
 
@@ -809,16 +759,15 @@ def create_app() -> Flask:
         return abs_path
 
     def _move_to_custom_digital_storage(static_rel: str) -> str:
-        """Move a file from uploads/... into DIGITAL_GOODS_DIR/custom_uploads/ and return new relpath."""
+        """Move a file from static/uploads/... into DIGITAL_GOODS_DIR/custom_uploads/ and return new relpath."""
         rel = (static_rel or "").replace("\\", "/").lstrip("/")
-        # Typical values: "uploads/<name>.pdf" stored under persistent uploads.
+        # Typical values: "uploads/<name>.pdf" stored under static.
         if rel.startswith("static/"):
             rel = rel[len("static/"):]
         if not rel.startswith("uploads/"):
             return ""
 
-        fn = rel.split("uploads/", 1)[1]
-        src = os.path.join(UPLOADS_DIR, fn)
+        src = os.path.join(app.static_folder, rel)
         if not os.path.isfile(src):
             return ""
 
@@ -1123,14 +1072,6 @@ def create_app() -> Flask:
         _save_json(PHOTO_OVERRIDES_PATH, items)
 
     def apply_photo_overrides(products: List[Product], overrides: Dict[str, str]) -> List[Product]:
-        """Apply photo overrides.
-
-        Stored override values are normalized to a relpath (no leading slash) and typically look like:
-          - uploads/<filename>   (persistent uploads on Render Disk)
-          - img/<...>            (static assets)
-
-        For uploads/* we set image_source="media" so templates use /media/uploads/...
-        """
         if not overrides:
             return products
         try:
@@ -1139,36 +1080,15 @@ def create_app() -> Flask:
             _dc_replace = None
         if not _dc_replace:
             return products
-
-        def _norm(rel: str) -> str:
-            r = (rel or "").replace("\\", "/").strip()
-            if not r:
-                return ""
-            # strip leading slash
-            r = r.lstrip("/")
-            # legacy values
-            if r.startswith("static/"):
-                r = r[len("static/"):]
-            if r.startswith("uploads/"):
-                return r
-            if r.startswith("static/uploads/"):
-                return "uploads/" + r.split("static/uploads/", 1)[1]
-            if r.startswith("/static/uploads/"):
-                return "uploads/" + r.split("/static/uploads/", 1)[1]
-            return r
-
         out: List[Product] = []
         for p in products:
             rel = overrides.get(p.id)
             if rel:
-                nrel = _norm(rel)
-                if nrel:
-                    src = "media" if nrel.startswith("uploads/") else "static"
-                    try:
-                        out.append(_dc_replace(p, images=(nrel,), image_source=src))
-                        continue
-                    except Exception:
-                        pass
+                try:
+                    out.append(_dc_replace(p, images=(rel,), image_source="static"))
+                    continue
+                except Exception:
+                    pass
             out.append(p)
         return out
 
@@ -1364,17 +1284,32 @@ def create_app() -> Flask:
             override_img = str(photo_overrides.get(pid) or "").strip()
             default_img = ""
             img_source = "static"
-
             if override_img:
                 default_img = override_img
                 img_source = _infer_source(override_img)
             else:
-                prods = by_cat.get(name_lc, [])
-                if prods:
-                    hero = prods[0].primary_image() or ""
-                    if hero:
-                        default_img = hero
-                        img_source = str(getattr(prods[0], "image_source", "static") or "static")
+                # Prefer an independent static category card image if present.
+                # This prevents the category thumbnail from "following" the newest/first product image.
+                card_rel = f"cards/{slug}.png"
+                card_abs = os.path.join(app.static_folder, card_rel.replace("/", os.sep))
+                if os.path.exists(card_abs):
+                    default_img = card_rel
+                    img_source = "static"
+                else:
+                    prods = by_cat.get(name_lc, [])
+                    if prods:
+                        # Pick the first product that actually has a hero image.
+                        hero = ""
+                        hero_src = "static"
+                        for pp in prods:
+                            h = pp.primary_image() or ""
+                            if h:
+                                hero = h
+                                hero_src = str(getattr(pp, "image_source", "static") or "static")
+                                break
+                        if hero:
+                            default_img = hero
+                            img_source = hero_src
 
             cards.append(
                 Product(
@@ -1826,20 +1761,10 @@ def create_app() -> Flask:
     # -------------------------
     @app.get("/media/<path:filename>")
     def media(filename: str):
-        """Serve exported images and persistent uploads.
-
-        - Exported DocuBeauty thumbnails: /media/<file> -> EXPORT_IMAGES
-        - Admin uploads: /media/uploads/<file> -> UPLOADS_DIR (Render Disk)
-        """
-        fn = (filename or "").replace("\\", "/").lstrip("/")
-        if fn.startswith("uploads/"):
-            rel = fn.split("uploads/", 1)[1]
-            abs_fs = os.path.join(UPLOADS_DIR, rel)
-            if os.path.exists(abs_fs):
-                return send_from_directory(UPLOADS_DIR, rel)
-        fs = os.path.join(EXPORT_IMAGES, fn)
+        # If a file is missing, return a safe placeholder instead of a broken image.
+        fs = os.path.join(EXPORT_IMAGES, filename)
         if os.path.exists(fs):
-            return send_from_directory(EXPORT_IMAGES, fn)
+            return send_from_directory(EXPORT_IMAGES, filename)
         return send_file(
             os.path.join(app.static_folder, PLACEHOLDER_THUMB),
             mimetype="image/svg+xml",
@@ -2401,15 +2326,26 @@ def create_app() -> Flask:
                 if rel:
                     cat_thumb_url = url_for("static", filename=rel)
                 else:
-                    for _p in prods:
-                        hero = _p.primary_image()
-                        if not hero:
-                            continue
-                        if getattr(_p, "image_source", "static") == "media":
-                            cat_thumb_url = url_for("media", filename=hero)
-                        else:
-                            cat_thumb_url = url_for("static", filename=hero)
-                        break
+                    # If a static independent category card exists, show it (keeps category thumbnail stable).
+                    try:
+                        slug_for_card = cat_docu_slug or slugify(cat_name)
+                    except Exception:
+                        slug_for_card = ""
+                    if slug_for_card:
+                        card_rel = f"cards/{slug_for_card}.png"
+                        card_abs = os.path.join(app.static_folder, card_rel.replace("/", os.sep))
+                        if os.path.exists(card_abs):
+                            cat_thumb_url = url_for("static", filename=card_rel)
+                    if not cat_thumb_url:
+                        for _p in prods:
+                            hero = _p.primary_image()
+                            if not hero:
+                                continue
+                            if getattr(_p, "image_source", "static") == "media":
+                                cat_thumb_url = url_for("media", filename=hero)
+                            else:
+                                cat_thumb_url = url_for("static", filename=hero)
+                            break
 
                 view_prods = []
                 for p in prods:
@@ -2722,18 +2658,48 @@ def create_app() -> Flask:
                 except Exception:
                     price = 0.0
 
-                img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp"})
+                # Validate required inputs with precise diagnostics.
+                allowed_img = {".png", ".jpg", ".jpeg", ".webp", ".jfif"}
+                allowed_file = {".pdf", ".zip", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"}
+
+                def _ext_of(file_obj):
+                    try:
+                        name = secure_filename(getattr(file_obj, "filename", "") or "")
+                        return os.path.splitext(name)[1].lower()
+                    except Exception:
+                        return ""
+
+                if not title:
+                    err_msg = "Brak nazwy produktu."
+                elif price <= 0:
+                    err_msg = "Nieprawidłowa cena (musi być większa niż 0)."
+                elif not photo or not getattr(photo, "filename", ""):
+                    err_msg = "Brak zdjęcia produktu."
+                elif _ext_of(photo) not in allowed_img:
+                    err_msg = "Nieobsługiwany format zdjęcia (dozwolone: JPG, PNG, WEBP)."
+                elif not product_file or not getattr(product_file, "filename", ""):
+                    err_msg = "Brak pliku produktu (PDF/ZIP/DOCX itd.)."
+                elif _ext_of(product_file) not in allowed_file:
+                    err_msg = "Nieobsługiwany format pliku (dozwolone: PDF, ZIP, DOC/DOCX, PPT/PPTX, XLS/XLSX)."
+                else:
+                    err_msg = ""
+
+                img_rel = _save_upload(photo, allowed_img)
                 # Downloadable file is stored outside /static to prevent free downloads.
                 file_rel = _save_upload(
                     product_file,
-                    {".pdf", ".zip", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"},
+                    allowed_file,
                     dst_dir=CUSTOM_DIGITAL_DIR,
                     rel_prefix="custom_uploads",
                 )
 
-                if not title or price <= 0 or not img_rel or not file_rel:
+                # If saving failed despite passing basic validation (e.g. filesystem issue), show a clear error.
+                if not err_msg and (not img_rel or not file_rel):
+                    err_msg = "Nie udało się zapisać plików. Spróbuj ponownie (lub zmień nazwę/format pliku)."
+
+                if err_msg:
                     if wants_json:
-                        return _fail("Wypełnij wszystkie pola: kategoria, nazwa, zdjęcie, opis, cena oraz plik (np. PDF).")
+                        return _fail(err_msg)
                     groups, categories = _build_groups_and_categories()
                     return render_template(
                         "edit.html",
@@ -2746,7 +2712,7 @@ def create_app() -> Flask:
                         deleted_category=False,
                         deleted_product=False,
                         photo_updated=False,
-                        add_error="Wypełnij wszystkie pola: kategoria, nazwa, zdjęcie, opis, cena oraz plik (np. PDF).",
+                        add_error=err_msg,
                         error_message=None,
                     )
 
@@ -3027,11 +2993,12 @@ def create_app() -> Flask:
 
     @app.get("/edit/download-data")
     def download_data():
-        """Download only the persistent data folder (as a ZIP) with all admin edits."""
+        """Download only the /data folder (as a ZIP) with all admin edits."""
         if not session.get("is_admin"):
             return redirect(url_for("edit"))
 
-        data_dir = PERSIST_DATA_DIR
+        base_dir = os.path.abspath(os.path.dirname(__file__))
+        data_dir = os.path.join(base_dir, "data")
 
         mem = BytesIO()
         with zipfile.ZipFile(mem, mode="w", compression=zipfile.ZIP_DEFLATED) as z:
@@ -3039,8 +3006,8 @@ def create_app() -> Flask:
                 for root, _dirs, files in os.walk(data_dir):
                     for fn in files:
                         fp = os.path.join(root, fn)
-                        rel = os.path.relpath(fp, data_dir).replace("\\", "/")
-                        z.write(fp, posixpath.join("data", rel))
+                        rel = os.path.relpath(fp, base_dir).replace("\\", "/")
+                        z.write(fp, rel)
 
         mem.seek(0)
         ts = time.strftime("%Y-%m-%d_%H-%M-%S")

@@ -605,13 +605,35 @@
       if(!form) return;
       const title = (form.querySelector('input[name="new_title"]')?.value || '').trim();
       const desc = (form.querySelector('textarea[name="new_description"]')?.value || '').trim();
-      const price = (form.querySelector('input[name="new_price"]')?.value || '').trim();
+      const priceRaw = (form.querySelector('input[name="new_price"]')?.value || '').trim();
       const photo = form.querySelector('input[name="new_photo"]')?.files?.[0] || null;
       const file = form.querySelector('input[name="new_file"]')?.files?.[0] || null;
       const category = (form.querySelector('input[name="new_category"]')?.value || '').trim() || 'Produkty';
 
-      if(!title || !price || !photo || !file){
-        showNotice('error', 'Aby dodać produkt do kolejki: wypełnij nazwę, cenę i wybierz zdjęcie oraz plik.');
+      function normPrice(s){
+        return String(s || '')
+          .replaceAll('zł','')
+          .replaceAll('ZŁ','')
+          .replaceAll(' ','')
+          .replaceAll(',','.');
+      }
+      const priceNum = parseFloat(normPrice(priceRaw));
+
+      // Light client-side validation to prevent "wszystko wypełnione" confusion.
+      if(!title){
+        showNotice('error', 'Brak nazwy produktu.');
+        return;
+      }
+      if(!priceRaw || !(priceNum > 0)){
+        showNotice('error', 'Nieprawidłowa cena (musi być większa niż 0).');
+        return;
+      }
+      if(!photo){
+        showNotice('error', 'Brak zdjęcia produktu.');
+        return;
+      }
+      if(!file){
+        showNotice('error', 'Brak pliku produktu (PDF/ZIP/DOCX itd.).');
         return;
       }
 
@@ -620,7 +642,7 @@
         category,
         title,
         desc,
-        price,
+        price: priceRaw,
         photo,
         file,
       });

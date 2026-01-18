@@ -1,5 +1,4 @@
 from __future__ import annotations
-from io import BytesIO
 
 import html as py_html
 import json
@@ -13,6 +12,7 @@ import shutil
 import posixpath
 import zipfile
 import hashlib
+from io import BytesIO
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -33,7 +33,7 @@ from markupsafe import Markup, escape
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 
-
+from werkzeug.utils import secure_filename
 
 import os
 STRIPE_SECRET_KEY_DEFAULT = os.getenv(
@@ -45,6 +45,36 @@ STRIPE_PUBLISHABLE_KEY_DEFAULT = os.getenv(
     "STRIPE_PUBLISHABLE_KEY",
     "pk_test_REPLACE_WITH_ENV_VARIABLE"
 )
+
+def _load_dotenv() -> None:
+    """Best-effort .env loader (no external dependency).
+
+    Only sets variables that are not already present in the environment.
+    Supports simple KEY=VALUE lines (optionally quoted); ignores blanks and comments.
+    """
+    try:
+        base_dir = os.path.abspath(os.path.dirname(__file__))
+        env_path = os.path.join(base_dir, ".env")
+        if not os.path.isfile(env_path):
+            return
+        with open(env_path, "r", encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip()
+                if (v.startswith("'") and v.endswith("'")) or (v.startswith("\"") and v.endswith("\"")):
+                    v = v[1:-1]
+                if not k:
+                    continue
+                if k not in os.environ:
+                    os.environ[k] = v
+    except Exception:
+        return
 
 
 
@@ -2626,7 +2656,7 @@ def create_app() -> Flask:
                 if (not cat_slug and not cat_name) or not photo:
                     return _fail("Brak kategorii lub pliku zdjęcia.") or redirect(url_for("edit"))
 
-                img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp"})
+                img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp", ".jfif"})
                 if not img_rel:
                     return _fail("Nieprawidłowy plik zdjęcia.") or redirect(url_for("edit", error="Nieprawidłowy plik zdjęcia."))
 
@@ -2826,7 +2856,7 @@ def create_app() -> Flask:
                 if not pid or not photo:
                     return _fail("Brak ID produktu lub pliku zdjęcia.") or redirect(url_for("edit"))
 
-                img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp"})
+                img_rel = _save_upload(photo, {".png", ".jpg", ".jpeg", ".webp", ".jfif"})
                 if not img_rel:
                     return _fail("Nieprawidłowy plik zdjęcia.") or redirect(url_for("edit", error="Nieprawidłowy plik zdjęcia."))
 
@@ -2991,24 +3021,40 @@ def create_app() -> Flask:
             error_message=((request.args.get("error_message") or request.args.get("error") or "") or None),
         )
 
-
     @app.get("/edit/download-data")
     def download_data():
-        """Download only the /data folder (as a ZIP) with all admin edits."""
+        """Download an admin backup ZIP.
+
+        The ZIP is meant to be unpacked into the project root on another server.
+        It includes:
+          - data/                       (JSON overrides, categories, deletions, etc.)
+          - static/uploads/             (category/product images uploaded in /edit)
+          - digital_goods/custom_uploads/ (paid files uploaded in /edit)
+        """
         if not session.get("is_admin"):
             return redirect(url_for("edit"))
 
         base_dir = os.path.abspath(os.path.dirname(__file__))
-        data_dir = os.path.join(base_dir, "data")
+        paths = [
+            os.path.join(base_dir, "data"),
+            os.path.join(base_dir, "static", "uploads"),
+            os.path.join(base_dir, "digital_goods", "custom_uploads"),
+        ]
+
+        def _add_dir(zf: zipfile.ZipFile, abs_dir: str) -> None:
+            if not abs_dir or not os.path.isdir(abs_dir):
+                return
+            for root, _dirs, files in os.walk(abs_dir):
+                for fn in files:
+                    fp = os.path.join(root, fn)
+                    # Store paths relative to project root so unzip is drop-in.
+                    rel = os.path.relpath(fp, base_dir).replace("\\", "/")
+                    zf.write(fp, rel)
 
         mem = BytesIO()
         with zipfile.ZipFile(mem, mode="w", compression=zipfile.ZIP_DEFLATED) as z:
-            if os.path.isdir(data_dir):
-                for root, _dirs, files in os.walk(data_dir):
-                    for fn in files:
-                        fp = os.path.join(root, fn)
-                        rel = os.path.relpath(fp, base_dir).replace("\\", "/")
-                        z.write(fp, rel)
+            for d in paths:
+                _add_dir(z, d)
 
         mem.seek(0)
         ts = time.strftime("%Y-%m-%d_%H-%M-%S")
@@ -3016,7 +3062,7 @@ def create_app() -> Flask:
             mem,
             mimetype="application/zip",
             as_attachment=True,
-            download_name=f"data_{ts}.zip",
+            download_name=f"backup_{ts}.zip",
         )
 
     @app.get("/cart")

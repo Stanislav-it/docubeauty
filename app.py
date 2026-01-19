@@ -35,10 +35,16 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from werkzeug.utils import secure_filename
 
-# Stripe keys must be provided via environment variables (or a .env file in development).
-# Do NOT hardcode secret keys in the repository.
-STRIPE_SECRET_KEY_DEFAULT = os.getenv("STRIPE_SECRET_KEY", "")
-STRIPE_PUBLISHABLE_KEY_DEFAULT = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+import os
+STRIPE_SECRET_KEY_DEFAULT = os.getenv(
+    "STRIPE_SECRET_KEY",
+    "sk_test_REPLACE_WITH_ENV_VARIABLE"
+)
+from werkzeug.utils import secure_filename
+STRIPE_PUBLISHABLE_KEY_DEFAULT = os.getenv(
+    "STRIPE_PUBLISHABLE_KEY",
+    "pk_test_REPLACE_WITH_ENV_VARIABLE"
+)
 
 def _load_dotenv() -> None:
     """Best-effort .env loader (no external dependency).

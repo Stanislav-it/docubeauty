@@ -1,13 +1,1 @@
-[
-  {
-    "id": "custom:b2d4ee1b0ccd4a1eade54fafc085a19c",
-    "title": "A",
-    "description": "test",
-    "price_pln": 50.0,
-    "image": "uploads/787d46b92f3649e785fb9d8727147141.jpg",
-    "file": "custom_uploads/9d9739a4de6d49c99039c813b9e285d0.pdf",
-    "category": "atest",
-    "docu_cat_slug": "",
-    "created_at": 1768921552
-  }
-]
+[]

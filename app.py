@@ -1839,6 +1839,35 @@ def create_app() -> Flask:
     # -------------------------
     # Media serving (exported images)
     # -------------------------
+
+    # IMPORTANT (Render persistence): user-uploaded images are stored in UPLOADS_DIR,
+    # which typically points to a mounted Persistent Disk (e.g. /var/data/uploads).
+    # Some hosts do not allow creating symlinks inside the code directory, so we
+    # explicitly serve uploads under the same URL prefix used by templates:
+    #   /static/uploads/<filename>
+    # This keeps all existing links working and ensures the shop always reads from
+    # the persistent location.
+    @app.get("/static/uploads/<path:filename>")
+    def static_uploads(filename: str):
+        # Prefer the persistent uploads dir; fall back to repo static/uploads if needed.
+        try:
+            primary = UPLOADS_DIR
+            repo_fallback = os.path.join(app.static_folder, "uploads")
+            fs_primary = os.path.join(primary, filename)
+            base = primary if os.path.exists(fs_primary) else repo_fallback
+            resp = send_from_directory(base, filename, max_age=0)
+            # Hard no-cache for user uploads (prevents stale thumbnails after replacement).
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            resp.headers["Expires"] = "0"
+            return resp
+        except Exception:
+            # If something goes wrong, return a safe placeholder instead of a broken image.
+            return send_file(
+                os.path.join(app.static_folder, PLACEHOLDER_THUMB),
+                mimetype="image/svg+xml",
+            )
+
     @app.get("/media/<path:filename>")
     def media(filename: str):
         # If a file is missing, return a safe placeholder instead of a broken image.

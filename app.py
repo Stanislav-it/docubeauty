@@ -656,99 +656,82 @@ def create_app() -> Flask:
     EXPORT_IMAGES = os.path.join(EXPORT_DIR, "images")
 
     # -------------------------
-    # Persistent storage (Render / other PaaS)
+    # Persistent storage (Render persistent disk support)
     # -------------------------
-    # In many PaaS environments (including Render), the application filesystem is ephemeral.
-    # To persist admin edits and uploaded images across deploys/restarts, point DATA_DIR and
-    # UPLOADS_DIR to a mounted persistent disk (e.g. /var/data/... on Render).
+    # On Render, the filesystem is ephemeral except for a mounted persistent disk.
+    # Configure a disk (e.g. mount at /var/data) and set PERSIST_ROOT=/var/data
+    # (or set DATA_DIR / UPLOADS_DIR explicitly).
     PERSIST_ROOT = os.getenv("PERSIST_ROOT", "").strip()
 
     REPO_DATA_DIR = os.path.join(app.root_path, "data")
-    DATA_DIR = os.getenv("DATA_DIR", "").strip()
-    if not DATA_DIR and PERSIST_ROOT:
-        DATA_DIR = os.path.join(PERSIST_ROOT, "data")
-    if not DATA_DIR:
-        DATA_DIR = REPO_DATA_DIR
+    DATA_DIR = os.getenv("DATA_DIR") or (os.path.join(PERSIST_ROOT, "data") if PERSIST_ROOT else REPO_DATA_DIR)
+    DATA_DIR = os.path.abspath(DATA_DIR)
     os.makedirs(DATA_DIR, exist_ok=True)
 
-    STATIC_UPLOADS_DIR = os.path.join(app.root_path, "static", "uploads")
-    UPLOADS_DIR = os.getenv("UPLOADS_DIR", "").strip()
-    if not UPLOADS_DIR and PERSIST_ROOT:
-        UPLOADS_DIR = os.path.join(PERSIST_ROOT, "uploads")
-    if not UPLOADS_DIR:
-        UPLOADS_DIR = STATIC_UPLOADS_DIR
-    os.makedirs(UPLOADS_DIR, exist_ok=True)
-
-    # Seed persistent DATA_DIR with repo defaults on first boot (if applicable).
-    if os.path.abspath(DATA_DIR) != os.path.abspath(REPO_DATA_DIR) and os.path.isdir(REPO_DATA_DIR):
+    # If using a persistent DATA_DIR, seed it with repo defaults once.
+    if os.path.abspath(REPO_DATA_DIR) != DATA_DIR and os.path.isdir(REPO_DATA_DIR):
         try:
-            for name in os.listdir(REPO_DATA_DIR):
-                if not name.lower().endswith(".json"):
-                    continue
-                src = os.path.join(REPO_DATA_DIR, name)
-                dst = os.path.join(DATA_DIR, name)
+            for fn in os.listdir(REPO_DATA_DIR):
+                src = os.path.join(REPO_DATA_DIR, fn)
+                dst = os.path.join(DATA_DIR, fn)
                 if os.path.isfile(src) and not os.path.exists(dst):
+                    import shutil
                     shutil.copy2(src, dst)
         except Exception:
             pass
 
-    # Make /static/uploads serve files from UPLOADS_DIR. Prefer a symlink for simplicity;
-    # if symlinks are not available, we add a fallback route later.
-    uploads_symlink_ok = True
-    if os.path.abspath(UPLOADS_DIR) != os.path.abspath(STATIC_UPLOADS_DIR):
-        try:
-            # If there are legacy files in STATIC_UPLOADS_DIR and the persistent dir is empty, copy them once.
-            if os.path.isdir(STATIC_UPLOADS_DIR) and not os.path.islink(STATIC_UPLOADS_DIR):
-                try:
-                    if not os.listdir(UPLOADS_DIR) and os.listdir(STATIC_UPLOADS_DIR):
-                        for fn in os.listdir(STATIC_UPLOADS_DIR):
-                            s = os.path.join(STATIC_UPLOADS_DIR, fn)
-                            d = os.path.join(UPLOADS_DIR, fn)
-                            if os.path.isfile(s) and not os.path.exists(d):
-                                shutil.copy2(s, d)
-                except Exception:
-                    pass
-
-            if os.path.islink(STATIC_UPLOADS_DIR):
-                if os.path.realpath(STATIC_UPLOADS_DIR) != os.path.realpath(UPLOADS_DIR):
-                    os.unlink(STATIC_UPLOADS_DIR)
-            elif os.path.isdir(STATIC_UPLOADS_DIR):
-                shutil.rmtree(STATIC_UPLOADS_DIR)
-            elif os.path.exists(STATIC_UPLOADS_DIR):
-                os.remove(STATIC_UPLOADS_DIR)
-
-            os.symlink(UPLOADS_DIR, STATIC_UPLOADS_DIR)
-        except Exception:
-            uploads_symlink_ok = False
-
-
-    # If symlinks are not available, serve uploads via an explicit route.
-    if not uploads_symlink_ok:
-        @app.get('/static/uploads/<path:filename>')
-        def _serve_uploaded_file(filename: str):
-            return send_from_directory(UPLOADS_DIR, filename)
-
-    # Product/admin data files (stored under DATA_DIR)
-    FALLBACK_PRODUCTS = os.path.join(DATA_DIR, "products.json")
+    FALLBACK_PRODUCTS = os.path.join(REPO_DATA_DIR, "products.json")
     PRICE_OVERRIDES_PATH = os.path.join(DATA_DIR, "price_overrides.json")
     DESCRIPTION_OVERRIDES_PATH = os.path.join(DATA_DIR, "description_overrides.json")
     TITLE_OVERRIDES_PATH = os.path.join(DATA_DIR, "title_overrides.json")
     CATEGORY_OVERRIDES_PATH = os.path.join(DATA_DIR, "category_overrides.json")
-
     CUSTOM_PRODUCTS_PATH = os.path.join(DATA_DIR, "custom_products.json")
     CUSTOM_CATEGORIES_PATH = os.path.join(DATA_DIR, "custom_categories.json")
     DELETED_PRODUCTS_PATH = os.path.join(DATA_DIR, "deleted_products.json")
     PHOTO_OVERRIDES_PATH = os.path.join(DATA_DIR, "photo_overrides.json")
 
-    # Ensure directories exist (DATA_DIR already created above)
-    os.makedirs(os.path.dirname(PRICE_OVERRIDES_PATH), exist_ok=True)
-    os.makedirs(os.path.dirname(DESCRIPTION_OVERRIDES_PATH), exist_ok=True)
-    os.makedirs(os.path.dirname(TITLE_OVERRIDES_PATH), exist_ok=True)
-    os.makedirs(os.path.dirname(CATEGORY_OVERRIDES_PATH), exist_ok=True)
-    os.makedirs(os.path.dirname(CUSTOM_PRODUCTS_PATH), exist_ok=True)
-    os.makedirs(os.path.dirname(CUSTOM_CATEGORIES_PATH), exist_ok=True)
-    os.makedirs(os.path.dirname(DELETED_PRODUCTS_PATH), exist_ok=True)
-    os.makedirs(os.path.dirname(PHOTO_OVERRIDES_PATH), exist_ok=True)
+    # Ensure parent folder exists (DATA_DIR already created, but keep for safety)
+    for _p in [PRICE_OVERRIDES_PATH, DESCRIPTION_OVERRIDES_PATH, TITLE_OVERRIDES_PATH, CATEGORY_OVERRIDES_PATH,
+              CUSTOM_PRODUCTS_PATH, CUSTOM_CATEGORIES_PATH, DELETED_PRODUCTS_PATH, PHOTO_OVERRIDES_PATH]:
+        try:
+            os.makedirs(os.path.dirname(_p), exist_ok=True)
+        except Exception:
+            pass
+
+    REPO_STATIC_UPLOADS = os.path.join(app.root_path, "static", "uploads")
+    UPLOADS_DIR = os.getenv("UPLOADS_DIR") or (os.path.join(PERSIST_ROOT, "uploads") if PERSIST_ROOT else REPO_STATIC_UPLOADS)
+    UPLOADS_DIR = os.path.abspath(UPLOADS_DIR)
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+    # Keep existing URLs (/static/uploads/<file>) working by symlinking the repo static/uploads
+    # directory to the persistent UPLOADS_DIR when they differ.
+    if os.path.abspath(REPO_STATIC_UPLOADS) != UPLOADS_DIR:
+        try:
+            import shutil
+            # Best-effort: migrate any repo-bundled files into the persistent folder once.
+            if os.path.isdir(REPO_STATIC_UPLOADS) and not os.path.islink(REPO_STATIC_UPLOADS):
+                try:
+                    for fn in os.listdir(REPO_STATIC_UPLOADS):
+                        src = os.path.join(REPO_STATIC_UPLOADS, fn)
+                        dst = os.path.join(UPLOADS_DIR, fn)
+                        if os.path.isfile(src) and not os.path.exists(dst):
+                            shutil.copy2(src, dst)
+                except Exception:
+                    pass
+                # Replace directory with symlink
+                shutil.rmtree(REPO_STATIC_UPLOADS)
+            elif os.path.exists(REPO_STATIC_UPLOADS) and not os.path.islink(REPO_STATIC_UPLOADS):
+                # If it's a file (unexpected), remove it.
+                os.remove(REPO_STATIC_UPLOADS)
+
+            # Ensure parent exists and create symlink
+            os.makedirs(os.path.dirname(REPO_STATIC_UPLOADS), exist_ok=True)
+            if not os.path.exists(REPO_STATIC_UPLOADS):
+                os.symlink(UPLOADS_DIR, REPO_STATIC_UPLOADS)
+        except Exception:
+            # If symlink isn't possible, the site will still work locally, but persistence of uploads
+            # requires symlink support on the host.
+            pass
 
     # -------------------------
     # Digital goods (downloads after payment)
@@ -892,29 +875,14 @@ def create_app() -> Flask:
         """
         thumb = p.primary_image() or ""
         if thumb:
-            # Normalise common stored values.
-            t = str(thumb).replace("\\", "/")
-            if t.startswith("/static/"):
-                t = t[len("/static/"):]
-            if t.startswith("static/"):
-                t = t[len("static/"):]
-
             if p.image_source == "media":
-                fs = os.path.join(EXPORT_IMAGES, t)
+                fs = os.path.join(EXPORT_IMAGES, thumb)
                 if os.path.exists(fs):
-                    return url_for("media", filename=t)
+                    return url_for("media", filename=thumb)
             else:
-                # Special-case uploaded images stored on a persistent disk.
-                # They are referenced as "uploads/<file>" but may not physically exist under
-                # app.static_folder if symlinks are unavailable. In that case, we still return
-                # the /static/uploads/<file> URL which will be served by the fallback route.
-                if t.startswith("uploads/"):
-                    if os.path.exists(os.path.join(UPLOADS_DIR, t[len("uploads/") :])):
-                        return url_for("static", filename=t)
-
-                fs = os.path.join(app.static_folder, t)
+                fs = os.path.join(app.static_folder, thumb)
                 if os.path.exists(fs):
-                    return url_for("static", filename=t)
+                    return url_for("static", filename=thumb)
         return url_for("static", filename=PLACEHOLDER_THUMB)
 
     # expose to templates
@@ -1202,41 +1170,6 @@ def create_app() -> Flask:
                 except Exception:
                     pass
             out.append(p)
-        return out
-
-    def normalize_photo_overrides_for_category_cards(items: List[Product], overrides: Dict[str, str]) -> Dict[str, str]:
-        """Make category thumbnail overrides robust across id variants.
-
-        Historically, category thumbnails could be stored under either:
-          - dbcat:<slug> (DocuBeauty navigation card)
-          - cat:<slugified-title> (custom category card)
-
-        Depending on how the admin UI sends fields, a DocuBeauty category thumbnail
-        may end up saved under cat:<...>. The /shop view, however, renders dbcat:<slug>
-        cards. To ensure the thumbnail is reflected in /shop, we mirror overrides
-        between these id variants at runtime.
-        """
-        if not overrides:
-            return overrides
-        out = dict(overrides)
-        for p in items:
-            try:
-                is_dbcat = bool(getattr(p, "docu_cat_slug", "") and not getattr(p, "docu_item_id", ""))
-            except Exception:
-                is_dbcat = False
-            if not is_dbcat:
-                continue
-            dbkey = str(getattr(p, "id", "") or "")
-            tslug = ""
-            try:
-                tslug = slugify(str(getattr(p, "title", "") or ""))
-            except Exception:
-                tslug = ""
-            catkey = f"cat:{tslug}" if tslug else ""
-            if catkey and catkey in out and dbkey and dbkey not in out:
-                out[dbkey] = out[catkey]
-            if catkey and dbkey in out and catkey not in out:
-                out[catkey] = out[dbkey]
         return out
 
     def apply_deleted_products(products: List[Product], deleted: set[str]) -> List[Product]:
@@ -1725,16 +1658,11 @@ def create_app() -> Flask:
 
             custom_cat_cards = build_custom_category_cards(custom_prods_for_cards, blocked_slugs=docu_slugs, blocked_names=docu_names)
             items = list(docu_products) + custom_cat_cards + custom_prods
-
-            # Ensure category thumbnail overrides are applied to the actual navigation card ids
-            # shown in /shop (dbcat:...), even if the override was stored under cat:<...>.
-            photo_overrides_norm = normalize_photo_overrides_for_category_cards(items, photo_overrides)
-
             items = apply_title_overrides(items, title_overrides)
             items = apply_price_overrides(items, price_overrides)
             items = apply_description_overrides(items, desc_overrides)
             items = apply_category_overrides(items, category_overrides)
-            items = apply_photo_overrides(items, photo_overrides_norm)
+            items = apply_photo_overrides(items, photo_overrides)
             items = apply_deleted_products(items, deleted_ids)
             items = dedupe_category_cards(items)
             return items
@@ -1827,13 +1755,11 @@ def create_app() -> Flask:
         # Always include custom products
         items.extend(load_custom_products())
 
-        photo_overrides_norm = normalize_photo_overrides_for_category_cards(items, photo_overrides)
-
         items = apply_title_overrides(items, title_overrides)
         items = apply_price_overrides(items, price_overrides)
         items = apply_description_overrides(items, desc_overrides)
         items = apply_category_overrides(items, category_overrides)
-        items = apply_photo_overrides(items, photo_overrides_norm)
+        items = apply_photo_overrides(items, photo_overrides)
         items = apply_deleted_products(items, deleted_ids)
         return items
 
@@ -2783,64 +2709,16 @@ def create_app() -> Flask:
                 if not img_rel:
                     return _fail("Nieprawidłowy plik zdjęcia.") or redirect(url_for("edit", error="Nieprawidłowy plik zdjęcia."))
 
-                # Determine which product ID should receive the thumbnail override.
-                # In DocuBeauty mode, the navigation cards use id: dbcat:<slug>.
-                # In custom categories, navigation cards use id: cat:<slugified-name>.
-                #
-                # IMPORTANT: some category groups in /edit may not provide cat_slug even when
-                # a DocuBeauty category exists (e.g. after deleting all items in the category).
-                # In that case, we try to resolve the DocuBeauty slug by category name and
-                # write the override to dbcat:<slug> so the /shop category card updates.
-                slug_name = slugify(cat_name) if cat_name else ""
-
-                pids = []
                 if cat_slug:
-                    pids.append(f"dbcat:{cat_slug}")
-                    # Also write to cat:<slug> for compatibility with custom cards/dedupe.
-                    if slug_name:
-                        pids.append(f"cat:{slug_name}")
+                    pid = f"dbcat:{cat_slug}"
                 else:
-                    resolved_docu = ""
-                    if slug_name:
-                        try:
-                            docu = build_docubeauty_products(app.root_path)
-                            for p0 in docu:
-                                if str(getattr(p0, 'id', '')).startswith('dbcat:') and slugify(str(getattr(p0, 'title', '') or '')) == slug_name:
-                                    resolved_docu = getattr(p0, 'docu_cat_slug', '') or str(p0.id).split(':', 1)[1]
-                                    break
-                        except Exception:
-                            resolved_docu = ""
-                    if resolved_docu:
-                        pids.append(f"dbcat:{resolved_docu}")
-                        pids.append(f"cat:{slug_name}")
-                    else:
-                        pids.append(f"cat:{slug_name}")
-
-                # Deduplicate while preserving order
-                seen = set()
-                pids = [x for x in pids if x and not (x in seen or seen.add(x))]
+                    pid = f"cat:{slugify(cat_name)}"
 
                 overrides = load_photo_overrides()
-
-                # Best-effort cleanup of previously used file (only if not referenced elsewhere).
-                old_vals = [str(overrides.get(pid) or "").strip() for pid in pids]
-                overrides_in_use = {str(v).strip() for v in overrides.values() if str(v).strip()}
-
-                for pid in pids:
-                    overrides[pid] = img_rel
-
-                # Remove old file if it is no longer referenced by any override key
-                for prev in old_vals:
-                    if prev and prev != img_rel:
-                        # After update, the new overrides_in_use set should include img_rel.
-                        # Recompute in-use excluding the previous value if it's now unused.
-                        # If prev isn't referenced anywhere after update, delete it.
-                        if prev not in {img_rel}:
-                            # Rebuild in-use after update
-                            in_use_after = {str(v).strip() for v in overrides.values() if str(v).strip()}
-                            if prev not in in_use_after:
-                                _delete_static_rel(prev)
-
+                old = str(overrides.get(pid) or "").strip()
+                if old and old != img_rel:
+                    _delete_static_rel(old)
+                overrides[pid] = img_rel
                 save_photo_overrides(overrides)
 
                 return _ok(photo_updated=1) or redirect(url_for("edit", photo_updated=1))

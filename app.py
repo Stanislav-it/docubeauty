@@ -2726,16 +2726,64 @@ def create_app() -> Flask:
                 if not img_rel:
                     return _fail("Nieprawidłowy plik zdjęcia.") or redirect(url_for("edit", error="Nieprawidłowy plik zdjęcia."))
 
+                # Determine which product ID should receive the thumbnail override.
+                # In DocuBeauty mode, the navigation cards use id: dbcat:<slug>.
+                # In custom categories, navigation cards use id: cat:<slugified-name>.
+                #
+                # IMPORTANT: some category groups in /edit may not provide cat_slug even when
+                # a DocuBeauty category exists (e.g. after deleting all items in the category).
+                # In that case, we try to resolve the DocuBeauty slug by category name and
+                # write the override to dbcat:<slug> so the /shop category card updates.
+                slug_name = slugify(cat_name) if cat_name else ""
+
+                pids = []
                 if cat_slug:
-                    pid = f"dbcat:{cat_slug}"
+                    pids.append(f"dbcat:{cat_slug}")
+                    # Also write to cat:<slug> for compatibility with custom cards/dedupe.
+                    if slug_name:
+                        pids.append(f"cat:{slug_name}")
                 else:
-                    pid = f"cat:{slugify(cat_name)}"
+                    resolved_docu = ""
+                    if slug_name:
+                        try:
+                            docu = build_docubeauty_products(app.root_path)
+                            for p0 in docu:
+                                if str(getattr(p0, 'id', '')).startswith('dbcat:') and slugify(str(getattr(p0, 'title', '') or '')) == slug_name:
+                                    resolved_docu = getattr(p0, 'docu_cat_slug', '') or str(p0.id).split(':', 1)[1]
+                                    break
+                        except Exception:
+                            resolved_docu = ""
+                    if resolved_docu:
+                        pids.append(f"dbcat:{resolved_docu}")
+                        pids.append(f"cat:{slug_name}")
+                    else:
+                        pids.append(f"cat:{slug_name}")
+
+                # Deduplicate while preserving order
+                seen = set()
+                pids = [x for x in pids if x and not (x in seen or seen.add(x))]
 
                 overrides = load_photo_overrides()
-                old = str(overrides.get(pid) or "").strip()
-                if old and old != img_rel:
-                    _delete_static_rel(old)
-                overrides[pid] = img_rel
+
+                # Best-effort cleanup of previously used file (only if not referenced elsewhere).
+                old_vals = [str(overrides.get(pid) or "").strip() for pid in pids]
+                overrides_in_use = {str(v).strip() for v in overrides.values() if str(v).strip()}
+
+                for pid in pids:
+                    overrides[pid] = img_rel
+
+                # Remove old file if it is no longer referenced by any override key
+                for prev in old_vals:
+                    if prev and prev != img_rel:
+                        # After update, the new overrides_in_use set should include img_rel.
+                        # Recompute in-use excluding the previous value if it's now unused.
+                        # If prev isn't referenced anywhere after update, delete it.
+                        if prev not in {img_rel}:
+                            # Rebuild in-use after update
+                            in_use_after = {str(v).strip() for v in overrides.values() if str(v).strip()}
+                            if prev not in in_use_after:
+                                _delete_static_rel(prev)
+
                 save_photo_overrides(overrides)
 
                 return _ok(photo_updated=1) or redirect(url_for("edit", photo_updated=1))

@@ -892,14 +892,29 @@ def create_app() -> Flask:
         """
         thumb = p.primary_image() or ""
         if thumb:
+            # Normalise common stored values.
+            t = str(thumb).replace("\\", "/")
+            if t.startswith("/static/"):
+                t = t[len("/static/"):]
+            if t.startswith("static/"):
+                t = t[len("static/"):]
+
             if p.image_source == "media":
-                fs = os.path.join(EXPORT_IMAGES, thumb)
+                fs = os.path.join(EXPORT_IMAGES, t)
                 if os.path.exists(fs):
-                    return url_for("media", filename=thumb)
+                    return url_for("media", filename=t)
             else:
-                fs = os.path.join(app.static_folder, thumb)
+                # Special-case uploaded images stored on a persistent disk.
+                # They are referenced as "uploads/<file>" but may not physically exist under
+                # app.static_folder if symlinks are unavailable. In that case, we still return
+                # the /static/uploads/<file> URL which will be served by the fallback route.
+                if t.startswith("uploads/"):
+                    if os.path.exists(os.path.join(UPLOADS_DIR, t[len("uploads/") :])):
+                        return url_for("static", filename=t)
+
+                fs = os.path.join(app.static_folder, t)
                 if os.path.exists(fs):
-                    return url_for("static", filename=thumb)
+                    return url_for("static", filename=t)
         return url_for("static", filename=PLACEHOLDER_THUMB)
 
     # expose to templates
@@ -1187,6 +1202,41 @@ def create_app() -> Flask:
                 except Exception:
                     pass
             out.append(p)
+        return out
+
+    def normalize_photo_overrides_for_category_cards(items: List[Product], overrides: Dict[str, str]) -> Dict[str, str]:
+        """Make category thumbnail overrides robust across id variants.
+
+        Historically, category thumbnails could be stored under either:
+          - dbcat:<slug> (DocuBeauty navigation card)
+          - cat:<slugified-title> (custom category card)
+
+        Depending on how the admin UI sends fields, a DocuBeauty category thumbnail
+        may end up saved under cat:<...>. The /shop view, however, renders dbcat:<slug>
+        cards. To ensure the thumbnail is reflected in /shop, we mirror overrides
+        between these id variants at runtime.
+        """
+        if not overrides:
+            return overrides
+        out = dict(overrides)
+        for p in items:
+            try:
+                is_dbcat = bool(getattr(p, "docu_cat_slug", "") and not getattr(p, "docu_item_id", ""))
+            except Exception:
+                is_dbcat = False
+            if not is_dbcat:
+                continue
+            dbkey = str(getattr(p, "id", "") or "")
+            tslug = ""
+            try:
+                tslug = slugify(str(getattr(p, "title", "") or ""))
+            except Exception:
+                tslug = ""
+            catkey = f"cat:{tslug}" if tslug else ""
+            if catkey and catkey in out and dbkey and dbkey not in out:
+                out[dbkey] = out[catkey]
+            if catkey and dbkey in out and catkey not in out:
+                out[catkey] = out[dbkey]
         return out
 
     def apply_deleted_products(products: List[Product], deleted: set[str]) -> List[Product]:
@@ -1675,11 +1725,16 @@ def create_app() -> Flask:
 
             custom_cat_cards = build_custom_category_cards(custom_prods_for_cards, blocked_slugs=docu_slugs, blocked_names=docu_names)
             items = list(docu_products) + custom_cat_cards + custom_prods
+
+            # Ensure category thumbnail overrides are applied to the actual navigation card ids
+            # shown in /shop (dbcat:...), even if the override was stored under cat:<...>.
+            photo_overrides_norm = normalize_photo_overrides_for_category_cards(items, photo_overrides)
+
             items = apply_title_overrides(items, title_overrides)
             items = apply_price_overrides(items, price_overrides)
             items = apply_description_overrides(items, desc_overrides)
             items = apply_category_overrides(items, category_overrides)
-            items = apply_photo_overrides(items, photo_overrides)
+            items = apply_photo_overrides(items, photo_overrides_norm)
             items = apply_deleted_products(items, deleted_ids)
             items = dedupe_category_cards(items)
             return items
@@ -1772,11 +1827,13 @@ def create_app() -> Flask:
         # Always include custom products
         items.extend(load_custom_products())
 
+        photo_overrides_norm = normalize_photo_overrides_for_category_cards(items, photo_overrides)
+
         items = apply_title_overrides(items, title_overrides)
         items = apply_price_overrides(items, price_overrides)
         items = apply_description_overrides(items, desc_overrides)
         items = apply_category_overrides(items, category_overrides)
-        items = apply_photo_overrides(items, photo_overrides)
+        items = apply_photo_overrides(items, photo_overrides_norm)
         items = apply_deleted_products(items, deleted_ids)
         return items
 

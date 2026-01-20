@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: flask-shop
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: ./render_start.sh
+    envVars:
+      - key: PERSIST_BASE
+        value: /var/data
+      - key: SECRET_KEY
+        generateValue: true
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: GUNICORN_THREADS
+        value: "2"
+      - key: GUNICORN_TIMEOUT
+        value: "120"
+    disk:
+      name: storage
+      mountPath: /var/data
+      sizeGB: 1

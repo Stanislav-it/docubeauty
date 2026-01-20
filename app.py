@@ -651,87 +651,32 @@ def create_app() -> Flask:
     app.add_template_filter(format_pln, name="pln")
     app.add_template_filter(slugify, name="slug")
     app.add_template_filter(format_description_html, name="desc_html")
+
     EXPORT_DIR = os.path.join(app.root_path, "export_all")
     EXPORT_PRODUCTS = os.path.join(EXPORT_DIR, "products.json")
     EXPORT_IMAGES = os.path.join(EXPORT_DIR, "images")
+    FALLBACK_PRODUCTS = os.path.join(app.root_path, "data", "products.json")
+    PRICE_OVERRIDES_PATH = os.path.join(app.root_path, "data", "price_overrides.json")
+    os.makedirs(os.path.dirname(PRICE_OVERRIDES_PATH), exist_ok=True)
+    DESCRIPTION_OVERRIDES_PATH = os.path.join(app.root_path, "data", "description_overrides.json")
+    os.makedirs(os.path.dirname(DESCRIPTION_OVERRIDES_PATH), exist_ok=True)
+    TITLE_OVERRIDES_PATH = os.path.join(app.root_path, "data", "title_overrides.json")
+    os.makedirs(os.path.dirname(TITLE_OVERRIDES_PATH), exist_ok=True)
+    CATEGORY_OVERRIDES_PATH = os.path.join(app.root_path, "data", "category_overrides.json")
+    os.makedirs(os.path.dirname(CATEGORY_OVERRIDES_PATH), exist_ok=True)
 
-    # -------------------------
-    # Persistent storage (Render persistent disk support)
-    # -------------------------
-    # On Render, the filesystem is ephemeral except for a mounted persistent disk.
-    # Configure a disk (e.g. mount at /var/data) and set PERSIST_ROOT=/var/data
-    # (or set DATA_DIR / UPLOADS_DIR explicitly).
-    PERSIST_ROOT = os.getenv("PERSIST_ROOT", "").strip()
+    CUSTOM_PRODUCTS_PATH = os.path.join(app.root_path, "data", "custom_products.json")
+    os.makedirs(os.path.dirname(CUSTOM_PRODUCTS_PATH), exist_ok=True)
 
-    REPO_DATA_DIR = os.path.join(app.root_path, "data")
-    DATA_DIR = os.getenv("DATA_DIR") or (os.path.join(PERSIST_ROOT, "data") if PERSIST_ROOT else REPO_DATA_DIR)
-    DATA_DIR = os.path.abspath(DATA_DIR)
-    os.makedirs(DATA_DIR, exist_ok=True)
+    CUSTOM_CATEGORIES_PATH = os.path.join(app.root_path, "data", "custom_categories.json")
+    DELETED_PRODUCTS_PATH = os.path.join(app.root_path, "data", "deleted_products.json")
+    PHOTO_OVERRIDES_PATH = os.path.join(app.root_path, "data", "photo_overrides.json")
+    os.makedirs(os.path.dirname(CUSTOM_CATEGORIES_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(DELETED_PRODUCTS_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(PHOTO_OVERRIDES_PATH), exist_ok=True)
 
-    # If using a persistent DATA_DIR, seed it with repo defaults once.
-    if os.path.abspath(REPO_DATA_DIR) != DATA_DIR and os.path.isdir(REPO_DATA_DIR):
-        try:
-            for fn in os.listdir(REPO_DATA_DIR):
-                src = os.path.join(REPO_DATA_DIR, fn)
-                dst = os.path.join(DATA_DIR, fn)
-                if os.path.isfile(src) and not os.path.exists(dst):
-                    import shutil
-                    shutil.copy2(src, dst)
-        except Exception:
-            pass
-
-    FALLBACK_PRODUCTS = os.path.join(REPO_DATA_DIR, "products.json")
-    PRICE_OVERRIDES_PATH = os.path.join(DATA_DIR, "price_overrides.json")
-    DESCRIPTION_OVERRIDES_PATH = os.path.join(DATA_DIR, "description_overrides.json")
-    TITLE_OVERRIDES_PATH = os.path.join(DATA_DIR, "title_overrides.json")
-    CATEGORY_OVERRIDES_PATH = os.path.join(DATA_DIR, "category_overrides.json")
-    CUSTOM_PRODUCTS_PATH = os.path.join(DATA_DIR, "custom_products.json")
-    CUSTOM_CATEGORIES_PATH = os.path.join(DATA_DIR, "custom_categories.json")
-    DELETED_PRODUCTS_PATH = os.path.join(DATA_DIR, "deleted_products.json")
-    PHOTO_OVERRIDES_PATH = os.path.join(DATA_DIR, "photo_overrides.json")
-
-    # Ensure parent folder exists (DATA_DIR already created, but keep for safety)
-    for _p in [PRICE_OVERRIDES_PATH, DESCRIPTION_OVERRIDES_PATH, TITLE_OVERRIDES_PATH, CATEGORY_OVERRIDES_PATH,
-              CUSTOM_PRODUCTS_PATH, CUSTOM_CATEGORIES_PATH, DELETED_PRODUCTS_PATH, PHOTO_OVERRIDES_PATH]:
-        try:
-            os.makedirs(os.path.dirname(_p), exist_ok=True)
-        except Exception:
-            pass
-
-    REPO_STATIC_UPLOADS = os.path.join(app.root_path, "static", "uploads")
-    UPLOADS_DIR = os.getenv("UPLOADS_DIR") or (os.path.join(PERSIST_ROOT, "uploads") if PERSIST_ROOT else REPO_STATIC_UPLOADS)
-    UPLOADS_DIR = os.path.abspath(UPLOADS_DIR)
+    UPLOADS_DIR = os.path.join(app.root_path, "static", "uploads")
     os.makedirs(UPLOADS_DIR, exist_ok=True)
-
-    # Keep existing URLs (/static/uploads/<file>) working by symlinking the repo static/uploads
-    # directory to the persistent UPLOADS_DIR when they differ.
-    if os.path.abspath(REPO_STATIC_UPLOADS) != UPLOADS_DIR:
-        try:
-            import shutil
-            # Best-effort: migrate any repo-bundled files into the persistent folder once.
-            if os.path.isdir(REPO_STATIC_UPLOADS) and not os.path.islink(REPO_STATIC_UPLOADS):
-                try:
-                    for fn in os.listdir(REPO_STATIC_UPLOADS):
-                        src = os.path.join(REPO_STATIC_UPLOADS, fn)
-                        dst = os.path.join(UPLOADS_DIR, fn)
-                        if os.path.isfile(src) and not os.path.exists(dst):
-                            shutil.copy2(src, dst)
-                except Exception:
-                    pass
-                # Replace directory with symlink
-                shutil.rmtree(REPO_STATIC_UPLOADS)
-            elif os.path.exists(REPO_STATIC_UPLOADS) and not os.path.islink(REPO_STATIC_UPLOADS):
-                # If it's a file (unexpected), remove it.
-                os.remove(REPO_STATIC_UPLOADS)
-
-            # Ensure parent exists and create symlink
-            os.makedirs(os.path.dirname(REPO_STATIC_UPLOADS), exist_ok=True)
-            if not os.path.exists(REPO_STATIC_UPLOADS):
-                os.symlink(UPLOADS_DIR, REPO_STATIC_UPLOADS)
-        except Exception:
-            # If symlink isn't possible, the site will still work locally, but persistence of uploads
-            # requires symlink support on the host.
-            pass
 
     # -------------------------
     # Digital goods (downloads after payment)
@@ -1839,35 +1784,6 @@ def create_app() -> Flask:
     # -------------------------
     # Media serving (exported images)
     # -------------------------
-
-    # IMPORTANT (Render persistence): user-uploaded images are stored in UPLOADS_DIR,
-    # which typically points to a mounted Persistent Disk (e.g. /var/data/uploads).
-    # Some hosts do not allow creating symlinks inside the code directory, so we
-    # explicitly serve uploads under the same URL prefix used by templates:
-    #   /static/uploads/<filename>
-    # This keeps all existing links working and ensures the shop always reads from
-    # the persistent location.
-    @app.get("/static/uploads/<path:filename>")
-    def static_uploads(filename: str):
-        # Prefer the persistent uploads dir; fall back to repo static/uploads if needed.
-        try:
-            primary = UPLOADS_DIR
-            repo_fallback = os.path.join(app.static_folder, "uploads")
-            fs_primary = os.path.join(primary, filename)
-            base = primary if os.path.exists(fs_primary) else repo_fallback
-            resp = send_from_directory(base, filename, max_age=0)
-            # Hard no-cache for user uploads (prevents stale thumbnails after replacement).
-            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-            resp.headers["Pragma"] = "no-cache"
-            resp.headers["Expires"] = "0"
-            return resp
-        except Exception:
-            # If something goes wrong, return a safe placeholder instead of a broken image.
-            return send_file(
-                os.path.join(app.static_folder, PLACEHOLDER_THUMB),
-                mimetype="image/svg+xml",
-            )
-
     @app.get("/media/<path:filename>")
     def media(filename: str):
         # If a file is missing, return a safe placeholder instead of a broken image.

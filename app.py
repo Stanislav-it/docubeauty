@@ -35,17 +35,10 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from werkzeug.utils import secure_filename
 
-
-import os
-STRIPE_SECRET_KEY_DEFAULT = os.getenv(
-    "STRIPE_SECRET_KEY",
-    "sk_test_REPLACE_WITH_ENV_VARIABLE"
-)
-from werkzeug.utils import secure_filename
-STRIPE_PUBLISHABLE_KEY_DEFAULT = os.getenv(
-    "STRIPE_PUBLISHABLE_KEY",
-    "pk_test_REPLACE_WITH_ENV_VARIABLE"
-)
+# Stripe keys must be provided via environment variables (or a .env file in development).
+# Do NOT hardcode secret keys in the repository.
+STRIPE_SECRET_KEY_DEFAULT = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY_DEFAULT = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 
 def _load_dotenv() -> None:
     """Best-effort .env loader (no external dependency).
@@ -658,32 +651,104 @@ def create_app() -> Flask:
     app.add_template_filter(format_pln, name="pln")
     app.add_template_filter(slugify, name="slug")
     app.add_template_filter(format_description_html, name="desc_html")
-
     EXPORT_DIR = os.path.join(app.root_path, "export_all")
     EXPORT_PRODUCTS = os.path.join(EXPORT_DIR, "products.json")
     EXPORT_IMAGES = os.path.join(EXPORT_DIR, "images")
-    FALLBACK_PRODUCTS = os.path.join(app.root_path, "data", "products.json")
-    PRICE_OVERRIDES_PATH = os.path.join(app.root_path, "data", "price_overrides.json")
+
+    # -------------------------
+    # Persistent storage (Render / other PaaS)
+    # -------------------------
+    # In many PaaS environments (including Render), the application filesystem is ephemeral.
+    # To persist admin edits and uploaded images across deploys/restarts, point DATA_DIR and
+    # UPLOADS_DIR to a mounted persistent disk (e.g. /var/data/... on Render).
+    PERSIST_ROOT = os.getenv("PERSIST_ROOT", "").strip()
+
+    REPO_DATA_DIR = os.path.join(app.root_path, "data")
+    DATA_DIR = os.getenv("DATA_DIR", "").strip()
+    if not DATA_DIR and PERSIST_ROOT:
+        DATA_DIR = os.path.join(PERSIST_ROOT, "data")
+    if not DATA_DIR:
+        DATA_DIR = REPO_DATA_DIR
+    os.makedirs(DATA_DIR, exist_ok=True)
+
+    STATIC_UPLOADS_DIR = os.path.join(app.root_path, "static", "uploads")
+    UPLOADS_DIR = os.getenv("UPLOADS_DIR", "").strip()
+    if not UPLOADS_DIR and PERSIST_ROOT:
+        UPLOADS_DIR = os.path.join(PERSIST_ROOT, "uploads")
+    if not UPLOADS_DIR:
+        UPLOADS_DIR = STATIC_UPLOADS_DIR
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+    # Seed persistent DATA_DIR with repo defaults on first boot (if applicable).
+    if os.path.abspath(DATA_DIR) != os.path.abspath(REPO_DATA_DIR) and os.path.isdir(REPO_DATA_DIR):
+        try:
+            for name in os.listdir(REPO_DATA_DIR):
+                if not name.lower().endswith(".json"):
+                    continue
+                src = os.path.join(REPO_DATA_DIR, name)
+                dst = os.path.join(DATA_DIR, name)
+                if os.path.isfile(src) and not os.path.exists(dst):
+                    shutil.copy2(src, dst)
+        except Exception:
+            pass
+
+    # Make /static/uploads serve files from UPLOADS_DIR. Prefer a symlink for simplicity;
+    # if symlinks are not available, we add a fallback route later.
+    uploads_symlink_ok = True
+    if os.path.abspath(UPLOADS_DIR) != os.path.abspath(STATIC_UPLOADS_DIR):
+        try:
+            # If there are legacy files in STATIC_UPLOADS_DIR and the persistent dir is empty, copy them once.
+            if os.path.isdir(STATIC_UPLOADS_DIR) and not os.path.islink(STATIC_UPLOADS_DIR):
+                try:
+                    if not os.listdir(UPLOADS_DIR) and os.listdir(STATIC_UPLOADS_DIR):
+                        for fn in os.listdir(STATIC_UPLOADS_DIR):
+                            s = os.path.join(STATIC_UPLOADS_DIR, fn)
+                            d = os.path.join(UPLOADS_DIR, fn)
+                            if os.path.isfile(s) and not os.path.exists(d):
+                                shutil.copy2(s, d)
+                except Exception:
+                    pass
+
+            if os.path.islink(STATIC_UPLOADS_DIR):
+                if os.path.realpath(STATIC_UPLOADS_DIR) != os.path.realpath(UPLOADS_DIR):
+                    os.unlink(STATIC_UPLOADS_DIR)
+            elif os.path.isdir(STATIC_UPLOADS_DIR):
+                shutil.rmtree(STATIC_UPLOADS_DIR)
+            elif os.path.exists(STATIC_UPLOADS_DIR):
+                os.remove(STATIC_UPLOADS_DIR)
+
+            os.symlink(UPLOADS_DIR, STATIC_UPLOADS_DIR)
+        except Exception:
+            uploads_symlink_ok = False
+
+
+    # If symlinks are not available, serve uploads via an explicit route.
+    if not uploads_symlink_ok:
+        @app.get('/static/uploads/<path:filename>')
+        def _serve_uploaded_file(filename: str):
+            return send_from_directory(UPLOADS_DIR, filename)
+
+    # Product/admin data files (stored under DATA_DIR)
+    FALLBACK_PRODUCTS = os.path.join(DATA_DIR, "products.json")
+    PRICE_OVERRIDES_PATH = os.path.join(DATA_DIR, "price_overrides.json")
+    DESCRIPTION_OVERRIDES_PATH = os.path.join(DATA_DIR, "description_overrides.json")
+    TITLE_OVERRIDES_PATH = os.path.join(DATA_DIR, "title_overrides.json")
+    CATEGORY_OVERRIDES_PATH = os.path.join(DATA_DIR, "category_overrides.json")
+
+    CUSTOM_PRODUCTS_PATH = os.path.join(DATA_DIR, "custom_products.json")
+    CUSTOM_CATEGORIES_PATH = os.path.join(DATA_DIR, "custom_categories.json")
+    DELETED_PRODUCTS_PATH = os.path.join(DATA_DIR, "deleted_products.json")
+    PHOTO_OVERRIDES_PATH = os.path.join(DATA_DIR, "photo_overrides.json")
+
+    # Ensure directories exist (DATA_DIR already created above)
     os.makedirs(os.path.dirname(PRICE_OVERRIDES_PATH), exist_ok=True)
-    DESCRIPTION_OVERRIDES_PATH = os.path.join(app.root_path, "data", "description_overrides.json")
     os.makedirs(os.path.dirname(DESCRIPTION_OVERRIDES_PATH), exist_ok=True)
-    TITLE_OVERRIDES_PATH = os.path.join(app.root_path, "data", "title_overrides.json")
     os.makedirs(os.path.dirname(TITLE_OVERRIDES_PATH), exist_ok=True)
-    CATEGORY_OVERRIDES_PATH = os.path.join(app.root_path, "data", "category_overrides.json")
     os.makedirs(os.path.dirname(CATEGORY_OVERRIDES_PATH), exist_ok=True)
-
-    CUSTOM_PRODUCTS_PATH = os.path.join(app.root_path, "data", "custom_products.json")
     os.makedirs(os.path.dirname(CUSTOM_PRODUCTS_PATH), exist_ok=True)
-
-    CUSTOM_CATEGORIES_PATH = os.path.join(app.root_path, "data", "custom_categories.json")
-    DELETED_PRODUCTS_PATH = os.path.join(app.root_path, "data", "deleted_products.json")
-    PHOTO_OVERRIDES_PATH = os.path.join(app.root_path, "data", "photo_overrides.json")
     os.makedirs(os.path.dirname(CUSTOM_CATEGORIES_PATH), exist_ok=True)
     os.makedirs(os.path.dirname(DELETED_PRODUCTS_PATH), exist_ok=True)
     os.makedirs(os.path.dirname(PHOTO_OVERRIDES_PATH), exist_ok=True)
-
-    UPLOADS_DIR = os.path.join(app.root_path, "static", "uploads")
-    os.makedirs(UPLOADS_DIR, exist_ok=True)
 
     # -------------------------
     # Digital goods (downloads after payment)

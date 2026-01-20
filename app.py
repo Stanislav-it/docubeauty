@@ -35,6 +35,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from werkzeug.utils import secure_filename
 
+
 import os
 STRIPE_SECRET_KEY_DEFAULT = os.getenv(
     "STRIPE_SECRET_KEY",
@@ -658,95 +659,31 @@ def create_app() -> Flask:
     app.add_template_filter(slugify, name="slug")
     app.add_template_filter(format_description_html, name="desc_html")
 
-    # -------------------------
-    # Persistent storage configuration
-    # -------------------------
-    # Render (and most PaaS) deployments use an ephemeral filesystem for the deploy image.
-    # Anything written into the project directory is lost on each deploy. To persist admin edits,
-    # mount a disk and point these env vars to it.
-    #
-    # Recommended for Render:
-    #   - Add a Disk and mount it at: /var/data
-    #   - Set env vars:
-    #       DATA_DIR=/var/data/data
-    #       UPLOADS_DIR=/var/data/uploads
-    #       CUSTOM_DIGITAL_DIR=/var/data/digital_custom_uploads
-    #
-    persist_root = (os.getenv("PERSIST_ROOT") or "").strip()
-    if persist_root:
-        persist_root = os.path.abspath(persist_root)
-
-    DATA_DIR = os.getenv("DATA_DIR") or (os.path.join(persist_root, "data") if persist_root else os.path.join(app.root_path, "data"))
-    UPLOADS_DIR = os.getenv("UPLOADS_DIR") or (os.path.join(persist_root, "uploads") if persist_root else os.path.join(app.root_path, "static", "uploads"))
-    CUSTOM_DIGITAL_DIR = os.getenv("CUSTOM_DIGITAL_DIR") or (os.path.join(persist_root, "digital_custom_uploads") if persist_root else os.path.join(app.root_path, "digital_goods", "custom_uploads"))
-
-    os.makedirs(DATA_DIR, exist_ok=True)
-    os.makedirs(UPLOADS_DIR, exist_ok=True)
-    os.makedirs(CUSTOM_DIGITAL_DIR, exist_ok=True)
-
-    # Keep public image URLs stable: templates expect images under url_for('static', filename='uploads/...').
-    # If UPLOADS_DIR is outside the repo (e.g., mounted disk), create/refresh a symlink at static/uploads.
-    static_uploads_dir = os.path.join(app.root_path, "static", "uploads")
-    try:
-        if os.path.abspath(UPLOADS_DIR) != os.path.abspath(static_uploads_dir):
-            os.makedirs(os.path.dirname(static_uploads_dir), exist_ok=True)
-            if os.path.islink(static_uploads_dir):
-                # Replace if it points elsewhere
-                try:
-                    current = os.readlink(static_uploads_dir)
-                except OSError:
-                    current = ""
-                if os.path.abspath(current) != os.path.abspath(UPLOADS_DIR):
-                    os.unlink(static_uploads_dir)
-                    os.symlink(UPLOADS_DIR, static_uploads_dir)
-            elif os.path.isdir(static_uploads_dir):
-                # Migrate any existing files, then replace directory with a symlink
-                for root, _dirs, files in os.walk(static_uploads_dir):
-                    for fn in files:
-                        src = os.path.join(root, fn)
-                        rel = os.path.relpath(src, static_uploads_dir)
-                        dst = os.path.join(UPLOADS_DIR, rel)
-                        os.makedirs(os.path.dirname(dst), exist_ok=True)
-                        if not os.path.exists(dst):
-                            shutil.move(src, dst)
-                try:
-                    shutil.rmtree(static_uploads_dir)
-                except Exception:
-                    pass
-                os.symlink(UPLOADS_DIR, static_uploads_dir)
-            elif not os.path.exists(static_uploads_dir):
-                os.symlink(UPLOADS_DIR, static_uploads_dir)
-    except Exception:
-        # Best-effort: if symlinks are not permitted, uploads will still be saved,
-        # but images may not be served from /static/uploads.
-        pass
-
-    app.config["DATA_DIR"] = DATA_DIR
-    app.config["UPLOADS_DIR"] = UPLOADS_DIR
-    app.config["CUSTOM_DIGITAL_DIR"] = CUSTOM_DIGITAL_DIR
-
     EXPORT_DIR = os.path.join(app.root_path, "export_all")
     EXPORT_PRODUCTS = os.path.join(EXPORT_DIR, "products.json")
     EXPORT_IMAGES = os.path.join(EXPORT_DIR, "images")
-    FALLBACK_PRODUCTS = os.path.join(DATA_DIR, "products.json")
-    PRICE_OVERRIDES_PATH = os.path.join(DATA_DIR, "price_overrides.json")
+    FALLBACK_PRODUCTS = os.path.join(app.root_path, "data", "products.json")
+    PRICE_OVERRIDES_PATH = os.path.join(app.root_path, "data", "price_overrides.json")
     os.makedirs(os.path.dirname(PRICE_OVERRIDES_PATH), exist_ok=True)
-    DESCRIPTION_OVERRIDES_PATH = os.path.join(DATA_DIR, "description_overrides.json")
+    DESCRIPTION_OVERRIDES_PATH = os.path.join(app.root_path, "data", "description_overrides.json")
     os.makedirs(os.path.dirname(DESCRIPTION_OVERRIDES_PATH), exist_ok=True)
-    TITLE_OVERRIDES_PATH = os.path.join(DATA_DIR, "title_overrides.json")
+    TITLE_OVERRIDES_PATH = os.path.join(app.root_path, "data", "title_overrides.json")
     os.makedirs(os.path.dirname(TITLE_OVERRIDES_PATH), exist_ok=True)
-    CATEGORY_OVERRIDES_PATH = os.path.join(DATA_DIR, "category_overrides.json")
+    CATEGORY_OVERRIDES_PATH = os.path.join(app.root_path, "data", "category_overrides.json")
     os.makedirs(os.path.dirname(CATEGORY_OVERRIDES_PATH), exist_ok=True)
 
-    CUSTOM_PRODUCTS_PATH = os.path.join(DATA_DIR, "custom_products.json")
+    CUSTOM_PRODUCTS_PATH = os.path.join(app.root_path, "data", "custom_products.json")
     os.makedirs(os.path.dirname(CUSTOM_PRODUCTS_PATH), exist_ok=True)
 
-    CUSTOM_CATEGORIES_PATH = os.path.join(DATA_DIR, "custom_categories.json")
-    DELETED_PRODUCTS_PATH = os.path.join(DATA_DIR, "deleted_products.json")
-    PHOTO_OVERRIDES_PATH = os.path.join(DATA_DIR, "photo_overrides.json")
+    CUSTOM_CATEGORIES_PATH = os.path.join(app.root_path, "data", "custom_categories.json")
+    DELETED_PRODUCTS_PATH = os.path.join(app.root_path, "data", "deleted_products.json")
+    PHOTO_OVERRIDES_PATH = os.path.join(app.root_path, "data", "photo_overrides.json")
     os.makedirs(os.path.dirname(CUSTOM_CATEGORIES_PATH), exist_ok=True)
     os.makedirs(os.path.dirname(DELETED_PRODUCTS_PATH), exist_ok=True)
     os.makedirs(os.path.dirname(PHOTO_OVERRIDES_PATH), exist_ok=True)
+
+    UPLOADS_DIR = os.path.join(app.root_path, "static", "uploads")
+    os.makedirs(UPLOADS_DIR, exist_ok=True)
 
     # -------------------------
     # Digital goods (downloads after payment)
@@ -757,7 +694,7 @@ def create_app() -> Flask:
 
     # Custom product files must NOT be served from /static (otherwise they are downloadable without payment).
     # We store them under DIGITAL_GOODS_DIR and serve only through /download/<token>.
-    CUSTOM_DIGITAL_DIR = app.config["CUSTOM_DIGITAL_DIR"]
+    CUSTOM_DIGITAL_DIR = os.path.join(DIGITAL_GOODS_DIR, "custom_uploads")
     os.makedirs(CUSTOM_DIGITAL_DIR, exist_ok=True)
 
     def _serializer() -> URLSafeTimedSerializer:
@@ -3091,36 +3028,34 @@ def create_app() -> Flask:
 
         The ZIP is meant to be unpacked into the project root on another server.
         It includes:
-          - data/                         (JSON overrides, categories, deletions, etc.)
-          - static/uploads/               (category/product images uploaded in /edit)
+          - data/                       (JSON overrides, categories, deletions, etc.)
+          - static/uploads/             (category/product images uploaded in /edit)
           - digital_goods/custom_uploads/ (paid files uploaded in /edit)
-
-        Note: Storage paths may live outside the repo (e.g., /var/data). We still write the ZIP
-        with a drop-in folder layout.
         """
         if not session.get("is_admin"):
             return redirect(url_for("edit"))
 
-        data_dir = app.config.get("DATA_DIR")
-        uploads_dir = app.config.get("UPLOADS_DIR")
-        custom_digital_dir = app.config.get("CUSTOM_DIGITAL_DIR")
+        base_dir = os.path.abspath(os.path.dirname(__file__))
+        paths = [
+            os.path.join(base_dir, "data"),
+            os.path.join(base_dir, "static", "uploads"),
+            os.path.join(base_dir, "digital_goods", "custom_uploads"),
+        ]
 
-        def _add_dir(zf: zipfile.ZipFile, abs_dir: str, zip_prefix: str) -> None:
+        def _add_dir(zf: zipfile.ZipFile, abs_dir: str) -> None:
             if not abs_dir or not os.path.isdir(abs_dir):
                 return
-            zip_prefix = (zip_prefix or "").strip("/")
             for root, _dirs, files in os.walk(abs_dir):
                 for fn in files:
                     fp = os.path.join(root, fn)
-                    rel_inside = os.path.relpath(fp, abs_dir).replace("\\", "/")
-                    rel = f"{zip_prefix}/{rel_inside}" if zip_prefix else rel_inside
+                    # Store paths relative to project root so unzip is drop-in.
+                    rel = os.path.relpath(fp, base_dir).replace("\\", "/")
                     zf.write(fp, rel)
 
         mem = BytesIO()
         with zipfile.ZipFile(mem, mode="w", compression=zipfile.ZIP_DEFLATED) as z:
-            _add_dir(z, data_dir, "data")
-            _add_dir(z, uploads_dir, "static/uploads")
-            _add_dir(z, custom_digital_dir, "digital_goods/custom_uploads")
+            for d in paths:
+                _add_dir(z, d)
 
         mem.seek(0)
         ts = time.strftime("%Y-%m-%d_%H-%M-%S")
@@ -3130,6 +3065,7 @@ def create_app() -> Flask:
             as_attachment=True,
             download_name=f"backup_{ts}.zip",
         )
+
     @app.get("/cart")
     def cart():
         catalog = get_catalog()

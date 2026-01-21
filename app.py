@@ -647,11 +647,12 @@ def create_app() -> Flask:
     #   ./digital_goods/custom_uploads
     PERSIST_BASE = (os.getenv("PERSIST_BASE") or "").strip()
 
-    def _safe_mkdir(p: str) -> None:
+    def _safe_mkdir(p: str) -> bool:
         try:
             os.makedirs(p, exist_ok=True)
+            return True
         except Exception:
-            pass
+            return False
 
     def _best_effort_copytree(src: str, dst: str) -> None:
         """Copy src -> dst without failing the app startup."""
@@ -665,25 +666,55 @@ def create_app() -> Flask:
             return
 
     def _ensure_symlink(src: str, dst: str) -> None:
-        """Replace src with a symlink to dst (best-effort)."""
+        """Replace src with a symlink to dst (best-effort).
+
+        Critical behavior:
+        - Only create the symlink if the persistent destination directory can be created.
+          This prevents broken symlinks when the disk is not attached/mounted.
+        - If src already exists (dir with initial seed data), merge it into dst once, then replace with symlink.
+        """
         try:
-            _safe_mkdir(dst)
-            # If src already exists and is NOT the desired symlink, migrate then replace.
+            if not _safe_mkdir(dst):
+                return
+
             if os.path.lexists(src):
                 if os.path.islink(src):
-                    # If it's already a symlink, leave it.
-                    return
-                # Migrate existing files into the persistent location.
-                _best_effort_copytree(src, dst)
-                try:
-                    shutil.rmtree(src)
-                except Exception:
-                    # If we can't remove it, do not break startup.
-                    return
+                    # Keep only if it already points to dst AND is a usable directory.
+                    try:
+                        link_target = os.readlink(src)
+                        if os.path.abspath(link_target) == os.path.abspath(dst) and os.path.isdir(src):
+                            return
+                    except Exception:
+                        pass
+                    try:
+                        os.unlink(src)
+                    except Exception:
+                        return
+                elif os.path.isdir(src):
+                    _best_effort_copytree(src, dst)
+                    try:
+                        shutil.rmtree(src)
+                    except Exception:
+                        return
+                else:
+                    # src is a file; remove it so we can replace with a directory symlink
+                    try:
+                        os.remove(src)
+                    except Exception:
+                        return
 
             parent = os.path.dirname(src)
-            _safe_mkdir(parent)
+            if not _safe_mkdir(parent):
+                return
+
             os.symlink(dst, src)
+
+            # Verify the link is usable; otherwise clean up and fall back.
+            if not os.path.isdir(src):
+                try:
+                    os.unlink(src)
+                except Exception:
+                    pass
         except Exception:
             # Symlinks can be unavailable on some platforms. In that case,
             # fall back to using the in-repo directories (non-persistent).
@@ -3328,7 +3359,7 @@ def create_app() -> Flask:
     # -------------------------
     @app.get("/download/<token>")
     def download_file(token: str):
-        """Serve a digital file (legacy manifest) or DocuBeauty item (C:\produkty) if token is valid and payment is confirmed."""
+        """Serve a digital file (legacy manifest) or DocuBeauty item (C:\\produkty) if token is valid and payment is confirmed."""
         try:
             data = read_download_token(token)
         except SignatureExpired:
@@ -3344,7 +3375,7 @@ def create_app() -> Flask:
         cs = verify_paid_checkout_session(session_id)
 
 
-        # DocuBeauty downloads (C:\produkty):
+        # DocuBeauty downloads (C:\\produkty):
         # - kind == "docu": single file inside a purchased category
         # - kind == "docu_bundle": whole purchased category as ZIP (original ZIP or generated from directory)
         kind = str(data.get("kind") or "").strip()

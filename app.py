@@ -635,6 +635,75 @@ class Product:
 def create_app() -> Flask:
     app = Flask(__name__)
 
+    # -------------------------
+    # Render persistence support
+    # -------------------------
+    # Render resets the service filesystem on each deploy.
+    # To persist admin edits and uploads, attach a Render Disk and set:
+    #   PERSIST_BASE=/var/data   (or your chosen mount path)
+    # This code will migrate and symlink the following directories:
+    #   ./data
+    #   ./static/uploads
+    #   ./digital_goods/custom_uploads
+    PERSIST_BASE = (os.getenv("PERSIST_BASE") or "").strip()
+
+    def _safe_mkdir(p: str) -> None:
+        try:
+            os.makedirs(p, exist_ok=True)
+        except Exception:
+            pass
+
+    def _best_effort_copytree(src: str, dst: str) -> None:
+        """Copy src -> dst without failing the app startup."""
+        try:
+            if not os.path.isdir(src):
+                return
+            _safe_mkdir(dst)
+            # Python 3.8+: dirs_exist_ok
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        except Exception:
+            return
+
+    def _ensure_symlink(src: str, dst: str) -> None:
+        """Replace src with a symlink to dst (best-effort)."""
+        try:
+            _safe_mkdir(dst)
+            # If src already exists and is NOT the desired symlink, migrate then replace.
+            if os.path.lexists(src):
+                if os.path.islink(src):
+                    # If it's already a symlink, leave it.
+                    return
+                # Migrate existing files into the persistent location.
+                _best_effort_copytree(src, dst)
+                try:
+                    shutil.rmtree(src)
+                except Exception:
+                    # If we can't remove it, do not break startup.
+                    return
+
+            parent = os.path.dirname(src)
+            _safe_mkdir(parent)
+            os.symlink(dst, src)
+        except Exception:
+            # Symlinks can be unavailable on some platforms. In that case,
+            # fall back to using the in-repo directories (non-persistent).
+            return
+
+    if PERSIST_BASE:
+        PERSIST_BASE = os.path.abspath(PERSIST_BASE)
+        _safe_mkdir(PERSIST_BASE)
+
+        # Persisted application state
+        _ensure_symlink(os.path.join(app.root_path, "data"), os.path.join(PERSIST_BASE, "data"))
+        _ensure_symlink(
+            os.path.join(app.root_path, "static", "uploads"),
+            os.path.join(PERSIST_BASE, "static", "uploads"),
+        )
+        _ensure_symlink(
+            os.path.join(app.root_path, "digital_goods", "custom_uploads"),
+            os.path.join(PERSIST_BASE, "digital_goods", "custom_uploads"),
+        )
+
     # Hard disable static caching during development
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
     app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")

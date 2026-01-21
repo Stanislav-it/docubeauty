@@ -1324,7 +1324,8 @@ body.menu-open .mobile-menu-overlay{
   }
 
   .sidebar{ display: none; }
-  .grid{ grid-template-columns: 1fr; gap: 18px; }
+  /* Mobile: keep 2 columns (categories/products) instead of collapsing to 1 */
+  .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
   .card{
     background: transparent;
@@ -1638,9 +1639,9 @@ body.menu-open .mobile-menu-overlay{
   .shop .card__img{ aspect-ratio: 3/4; }
 }
 
-/* Only ultra-small screens go to 1 column */
+/* Ultra-small screens: still keep 2 columns (as requested) */
 @media (max-width: 360px){
-  .grid{ grid-template-columns: 1fr; }
+  .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 }
 
 /* Remove wishlist/heart UI on cards */
@@ -1856,7 +1857,7 @@ textarea.form-input{ resize: vertical; min-height: 88px; }
 }
 
 
-/* Shop grid: 3 cards per row on desktop, 2 on tablet, 1 on very small screens */
+/* Shop grid: 3 cards per row on desktop, 2 on tablet/phones (including very small screens) */
 .shop .shop__content .grid{
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1869,7 +1870,8 @@ textarea.form-input{ resize: vertical; min-height: 88px; }
 
 @media (max-width: 360px){
   .shop .shop__content .grid{
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
 }
 

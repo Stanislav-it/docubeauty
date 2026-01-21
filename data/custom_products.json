@@ -1,1 +1,200 @@
-[]
+[
+  {
+    "id": "custom:c53d839966ce4729b0bfe37d86100c1e",
+    "title": "AUTOLOGICZNY WYPEŁNIACZ (ATR) dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalny zestaw dokumentacji zabiegowej - AUTOLOGICZNY WYPEŁNIACZ ATR (PRODUKT CYFROWY PDF)\r\n\r\nPakiet zawiera 8 plików w formacie PDF - znajduje się w nim m.in. :\r\n- INFORMATOR ZABIEGOWY dla Klienta\r\n- Karta Klienta / Ankieta medyczna\r\n- Karta zabiegowa\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu - format wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet DOKUMENTÓW ZABIEGOWYCH jest profesjonalnie zaprojektowany, łatwy do uzupełnienia i dostosowany do indywidualnych potrzeb salonu beauty. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/29acf73b61904b5f8c74d546b603e8f1.png",
+    "file": "custom_uploads/3d466e2cce7947c8a6a67dca494345a2.zip",
+    "category": "AUTOLOGICZNY WYPEŁNIACZ",
+    "docu_cat_slug": "",
+    "created_at": 1769006473
+  },
+  {
+    "id": "custom:7c7f7581811f4f6db0cadda0fa146d30",
+    "title": "TOKSYNA BOTULINOWA dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - TOKSYNA BOTULINOWA (produkt cyfrowy)\r\n\r\nPakiet zawiera 8 plików w formacie PDF - znajduje się w nim m.in. :\r\n- Karta informacyjna dla Klienta - INFORMATOR ZABIEGOWY\r\n- Karta Klienta z ankietą przedzabiegową - ANKIETA MEDYCZNA\r\n- Karta zabiegowa\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu w formacie wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet dokumentów zabiegowych jest profesjonalnie zaprojektowany i łatwy do uzupełnienia. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/fcb9dca885c847f38318d01025a16b61.png",
+    "file": "custom_uploads/de2849246dab41dc83af964e862955bf.zip",
+    "category": "TOKSYNA BOTULINOWA",
+    "docu_cat_slug": "",
+    "created_at": 1769006938
+  },
+  {
+    "id": "custom:202c04bbe788460cac86176b5590a30e",
+    "title": "DEPILACJA LASEROWA dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - DEPILACJA LASEROWA (produkt cyfrowy)\r\n\r\nPakiet zawiera 11 plików w formacie PDF - znajduje się w nim m.in. :\r\n- Karta informacyjna dla Klienta - INFORMATOR ZABIEGOWY\r\n- Karta Klienta z ankietą przedzabiegową - ANKIETA MEDYCZNA\r\n- Karta zabiegowa, przebieg zabiegu\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu w formacie wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet dokumentów zabiegowych jest profesjonalnie zaprojektowany i łatwy do uzupełnienia. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/04519e18a9f34b969db65daed753c218.png",
+    "file": "custom_uploads/39c86b91f74b4e85a0ea7e1825eb5d2b.zip",
+    "category": "DEPILACJA LASEROWA",
+    "docu_cat_slug": "",
+    "created_at": 1769007082
+  },
+  {
+    "id": "custom:4d09cf360ad34522ae90aec252228eac",
+    "title": "FIZJOTERAPIA dokumenty PAKIET",
+    "description": "Profesjonalna dokumentacja dla FIZJOTERAPEUTÓW.\r\n\r\nProdukt cyfrowy PDF - pakiet zawiera:\r\n- Kartę pacjenta\r\n- Zgodę na leczenie\r\n- Wywiad fizjoterapeutyczny - 3 strony\r\n- Badanie fizykalne - 2 strony\r\n- Plan terapii - 2 strony\r\n\r\nDokumenty objęte są prawami autorskimi - stworzone na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 55.0,
+    "image": "uploads/c6f4d74596c448b8b7175fb38aa3ad68.png",
+    "file": "custom_uploads/b303fb4fae27489aa5c1aef22d350918.zip",
+    "category": "FIZJOTERAPIA",
+    "docu_cat_slug": "",
+    "created_at": 1769007195
+  },
+  {
+    "id": "custom:77437e5d66604a30adc483c410e97aed",
+    "title": "HENNA BRWI dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa -HENNA BRWI (produkt cyfrowy)\r\n\r\nPakiet zawiera 8 plików w formacie PDF - znajduje się w nim m.in. :\r\n- Karta informacyjna dla Klienta - INFORMATOR ZABIEGOWY\r\n- Karta Klienta z ankietą przedzabiegową - ANKIETA MEDYCZNA\r\n- Karta zabiegowa\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu w formacie wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet dokumentów zabiegowych jest profesjonalnie zaprojektowany i łatwy do uzupełnienia. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/445c62f86ce841f99c0461a1b687110e.png",
+    "file": "custom_uploads/75175d9d353c4beaa6d66d45cff20188.zip",
+    "category": "HENNA BRWI",
+    "docu_cat_slug": "",
+    "created_at": 1769007303
+  },
+  {
+    "id": "custom:309deef8419e4624afa65b7df50c288c",
+    "title": "KERATYNOWE PROSTOWANIE WŁOSÓW dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalny zestaw dokumentacji zabiegowej - KERATYNOWE PROSTOWANIE WŁOSÓW (PRODUKT CYFROWY PDF)\r\n\r\nPakiet zawiera 8 plików w formacie PDF - znajduje się w nim m.in. :\r\n- INFORMATOR ZABIEGOWY dla Klienta\r\n- Karta Klienta / Ankieta medyczna\r\n- Karta zabiegowa\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu - format wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet DOKUMENTÓW ZABIEGOWYCH jest profesjonalnie zaprojektowany, łatwy do uzupełnienia i dostosowany do indywidualnych potrzeb salonu beauty. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/b5b5be5a4a5b4fd1ad2e361d2daa648b.png",
+    "file": "custom_uploads/00b9e980c3f94e018ede85ee4505dd62.zip",
+    "category": "KERATYNOWE PROSTOWANIE WŁOSÓW",
+    "docu_cat_slug": "",
+    "created_at": 1769007670
+  },
+  {
+    "id": "custom:d2bac081e7664b729b52395c5806d193",
+    "title": "KOSMETYCZNE WYBIELANIE ZĘBÓW dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - KOSMETYCZNE WYBIELANIE ZĘBÓW (PRODUKT CYFROWY)\r\n\r\nPakiet zawiera 7 plików w formacie PDF - znajduje się w nim m.in. :\r\n- INFORMATOR ZABIEGOWY dla Klienta\r\n- Karta Klienta / Ankieta medyczna\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu - format wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet DOKUMENTÓW ZABIEGOWYCH jest profesjonalnie zaprojektowany, łatwy do uzupełnienia i dostosowany do indywidualnych potrzeb salonu beauty. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/457f3fc49ee742eb96335f0f75227a42.png",
+    "file": "custom_uploads/97ef718b35154efebdacc8ca85a786d4.zip",
+    "category": "KOSMETYCZNE WYBIELANIE ZĘBÓW",
+    "docu_cat_slug": "",
+    "created_at": 1769007828
+  },
+  {
+    "id": "custom:bb06c677d0b44055b9fcf2fb3b1881fe",
+    "title": "LAMINACJA BRWI CANVA (edycja) dokumenty zabiegowe PAKIET",
+    "description": "Zestaw dokumentów zabiegowych LAMINACJA BRWI w języku polskim (CANVA - edycja)\r\n\r\nZestaw zawiera 8 plików PDF gotowych do druku oraz wersję edytowalną w programie CANVA.\r\n\r\nW nich między innymi :\r\n- Karta informacyjna o zabiegu - INFORMATOR ZABIEGOWY\r\n- Karta Klienta - ANKIETA MEDYCZNA / WYWIAD PRZEDZABIEGOWY\r\n- Karta zabiegowa\r\n- Zgoda na zabieg\r\n- Zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu\r\n\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 85.0,
+    "image": "uploads/bd26dec9d59a4c398d7d01c8c4f64cb1.png",
+    "file": "custom_uploads/b2c873def0e9404f9be40e4721051a83.zip",
+    "category": "LAMINACJA BRWI - CANVA",
+    "docu_cat_slug": "",
+    "created_at": 1769007998
+  },
+  {
+    "id": "custom:5e7f6673664440e0b62cf242472695a6",
+    "title": "LIFTING / LAMINACJA RZĘS dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - LIFTING / LAMINACJA RZĘS (produkt cyfrowy)\r\n\r\nPakiet zawiera 8 plików w formacie PDF - znajduje się w nim m. in. :\r\n- Karta informacyjna dla Klienta - INFORMATOR ZABIEGOWY\r\n- Karta Klienta z ankietą przedzabiegową - ANKIETA MEDYCZNA\r\n- Karta zabiegowa\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Świadoma zgoda na zabieg\r\n- Zalecenia po zabiegu w formacie wizytówki 90x50mm\r\n\r\nCały pakiet dokumentów zabiegowych jest profesjonalnie zaprojektowany i łatwy do uzupełnienia. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/e6570a2aa61c4228920d5198ad9261f5.png",
+    "file": "custom_uploads/629de765acd646b2864eab1ac1de9225.zip",
+    "category": "LIFTING / LAMINACJA RZĘS",
+    "docu_cat_slug": "",
+    "created_at": 1769008191
+  },
+  {
+    "id": "custom:320d96ae7dbc40a3820434a069d90032",
+    "title": "LASER FRAKCYJNY CO2 dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - LASER FRAKCYJNY CO2 (PRODUKT CYFROWY)\r\n\r\nPakiet zawiera 9 plików w formacie PDF - znajduje się w nim m.in. :\r\n- INFORMATOR ZABIEGOWY dla Klienta\r\n- Karta Klienta / Ankieta medyczna\r\n- Karta zabiegowa\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu - format wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet DOKUMENTÓW ZABIEGOWYCH jest profesjonalnie zaprojektowany, łatwy do uzupełnienia i dostosowany do indywidualnych potrzeb salonu beauty. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/48e574752ceb472181afecf6e0535466.png",
+    "file": "custom_uploads/d3564740e1354d69972cf82f92636ea4.zip",
+    "category": "LASER FRAKCYJNY CO2",
+    "docu_cat_slug": "",
+    "created_at": 1769008665
+  },
+  {
+    "id": "custom:de9969feea944eb0aab771bbeee7cf09",
+    "title": "LIPOLIZA INIEKCYJNA dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - LIPOLIZA INIEKCYJNA (PRODUKT CYFROWY)\r\n\r\nPakiet zawiera 10 plików w formacie PDF - znajduje się w nim m.in. :\r\n- INFORMATOR ZABIEGOWY dla Klienta\r\n- Karta Klienta / Ankieta medyczna\r\n- Karta zabiegowa\r\n- Parametry zabiegowe\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu - format wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet DOKUMENTÓW ZABIEGOWYCH jest profesjonalnie zaprojektowany, łatwy do uzupełnienia i dostosowany do indywidualnych potrzeb salonu beauty. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/96975e49ee4a4f5697696daafff815fb.png",
+    "file": "custom_uploads/9423893d6c6444d28f0883daa4a2c166.zip",
+    "category": "LIPOLIZA INIEKCYJNA",
+    "docu_cat_slug": "",
+    "created_at": 1769008998
+  },
+  {
+    "id": "custom:0b3a6c3827784c4ea3228a258f9a6711",
+    "title": "MEZOTERAPIA BEZIGŁOWA dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - MEZOTERAPIA BEZIGŁOWA (PRODUKT CYFROWY)\r\n\r\nPakiet zawiera 10 plików w formacie PDF - znajduje się w nim m.in. :\r\n- INFORMATOR ZABIEGOWY dla Klienta\r\n- Karta Klienta / Ankieta medyczna\r\n- Karta zabiegowa (ciało / twarz)\r\n- Parametry zabiegowe\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu - format wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet DOKUMENTÓW ZABIEGOWYCH jest profesjonalnie zaprojektowany, łatwy do uzupełnienia i dostosowany do indywidualnych potrzeb salonu beauty. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.",
+    "price_pln": 75.0,
+    "image": "uploads/bc975f85734d4b148eb8a8b150188090.png",
+    "file": "custom_uploads/a59a31bf947346a693c071a13a7ecdaa.zip",
+    "category": "MEZOTERAPIA BEZIGŁOWA",
+    "docu_cat_slug": "",
+    "created_at": 1769017028
+  },
+  {
+    "id": "custom:1980db8a71ad4658af485a78940cf0f2",
+    "title": "MEZOTERAPIA IGŁOWA dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - MEZOTERAPIA IGŁOWA (PRODUKT CYFROWY)\r\n\r\nPakiet zawiera 10 plików w formacie PDF - znajduje się w nim m.in. :\r\n- INFORMATOR ZABIEGOWY dla Klienta\r\n- Karta Klienta / Ankieta medyczna\r\n- Karta zabiegowa (ciało / twarz)\r\n- Parametry zabiegowe\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu - format wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet DOKUMENTÓW ZABIEGOWYCH jest profesjonalnie zaprojektowany, łatwy do uzupełnienia i dostosowany do indywidualnych potrzeb salonu beauty. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/bb632a8d74484fc4bf5b4e463afc518e.png",
+    "file": "custom_uploads/4024c2a27ebf4a58a8ac7f8561c14e53.zip",
+    "category": "MEZOTERAPIA IGŁOWA",
+    "docu_cat_slug": "",
+    "created_at": 1769017190
+  },
+  {
+    "id": "custom:5eb19cb8ffeb4515855e424450192d8f",
+    "title": "MEZOTERAPIA MIKROIGŁOWA dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - MEZOTERAPIA MIKROIGŁOWA (PRODUKT CYFROWY)\r\n\r\nPakiet zawiera 10 plików w formacie PDF - znajduje się w nim m.in. :\r\n- INFORMATOR ZABIEGOWY dla Klienta\r\n- Karta Klienta / Ankieta medyczna\r\n- Karta zabiegowa (twarz / ciało)\r\n- Parametry zabiegowe\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu - format wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet DOKUMENTÓW ZABIEGOWYCH jest profesjonalnie zaprojektowany, łatwy do uzupełnienia i dostosowany do indywidualnych potrzeb salonu beauty. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/baa2bd74fb774d82956fd56914750695.png",
+    "file": "custom_uploads/70040b17e34f4c22b97e2f3f4ac80c03.zip",
+    "category": "MEZOTERAPIA MIKROIGŁOWA",
+    "docu_cat_slug": "",
+    "created_at": 1769017360
+  },
+  {
+    "id": "custom:854a3d54f1ee4867a199be85dfdb8998",
+    "title": "MODELKA / MODEL zgoda na zabieg w ramach programu szkoleniowego",
+    "description": "Profesjonalna dokumentacja w salonie beauty (dla Instruktorów / Szkoleniowców prowadzących własne kursy i szkolenia)\r\n\r\nOferta obejmuję świadomą zgodę dla MODELKI / MODELA w ramach programu szkoleniowego (dla zabiegu wykonywanego przez kursanta).\r\n\r\nDokument jest produktem cyfrowym (plik PDF) do samodzielnego wydruku.\r\n\r\nFormularz jest zgodny z obowiązującymi przepisami prawa i spełnia najwyższe standardy jakości.\r\n\r\nDokument objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest jego dalsza odsprzedaż i udostępnianie.",
+    "price_pln": 15.0,
+    "image": "uploads/0a9568aee11a4d968e078c5bef712ebb.png",
+    "file": "custom_uploads/d1cd0e71eebd4f0caf4cbc23879a2172.pdf",
+    "category": "ZGODY SZKOLENIOWE",
+    "docu_cat_slug": "",
+    "created_at": 1769017499
+  },
+  {
+    "id": "custom:fada8dc878ca4e2ba9f8c6d1c191cec7",
+    "title": "MODELOWANIE UST dokumenty zabiegowe PAKIET",
+    "description": "Profesjonalna dokumentacja zabiegowa - MODELOWANIE UST KWASEM HIALURONOWYM (produkt cyfrowy)\r\n\r\nPakiet zawiera 9 plików w formacie PDF - znajduje się w nim m.in. :\r\n- Karta informacyjna dla Klienta - INFORMATOR ZABIEGOWY\r\n- Karta Klienta z ankietą przedzabiegową - ANKIETA MEDYCZNA\r\n- Karta zabiegowa\r\n- Wskazania i przeciwwskazania do zabiegu\r\n- Ogólna zgoda na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu w formacie wizytówki 90x50mm\r\n- Świadoma zgoda na zabieg\r\n\r\nCały pakiet dokumentów zabiegowych jest profesjonalnie zaprojektowany i łatwy do uzupełnienia. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/f7181e1500174ce78e5dd7400978b24f.png",
+    "file": "custom_uploads/4b0c89d7cb1a40bfa7cbaaf894213ebc.zip",
+    "category": "MODELOWANIE UST",
+    "docu_cat_slug": "",
+    "created_at": 1769017668
+  },
+  {
+    "id": "custom:538ed7385b72401b89d032d12321597a",
+    "title": "NICI PDO dokumenty zabiegowe PAKIET",
+    "description": "PROFESJONALNY PAKIET DOKUMENTÓW ZABIEGOWYCH - NICI PDO (produkt cyfrowy)\r\n\r\nPakiet zawiera 9 plików PDF do samodzielnego wydruku.\r\n\r\nZawiera m.in. :\r\n- Kartę informacyjną dla Klienta\r\n- Kartę Klienta z ankietą przedzabiegową\r\n- Kartę zabiegową\r\n- Ogólną zgodę na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu w formacie wizytówki 90x50mm\r\n- Zgodę na zabieg\r\n\r\nZgody konsultowane z prawnikiem.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/16069eb4cccf46a789a8a3be8270abc9.png",
+    "file": "custom_uploads/dc3c0f5ea0ea45b8a0f84fc7f2601dfd.zip",
+    "category": "NICI PDO",
+    "docu_cat_slug": "nici-pdo",
+    "created_at": 1769017836
+  },
+  {
+    "id": "custom:f4947b5482b64fe28390039dc698b08d",
+    "title": "LAMINACJA BRWI dokumenty zabiegowe PAKIET",
+    "description": "PROFESJONALNY PAKIET DOKUMENTÓW ZABIEGOWYCH - LAMINACJA BRWI (produkt cyfrowy)\r\n\r\nPakiet zawiera 9 plików PDF do samodzielnego wydruku.\r\n\r\nZawiera m.in. :\r\n- Kartę informacyjną dla Klienta\r\n- Kartę Klienta z ankietą przedzabiegową\r\n- Kartę zabiegową\r\n- Ogólną zgodę na wykorzystanie wizerunku\r\n- RODO\r\n- Zalecenia po zabiegu w formacie wizytówki 90x50mm\r\n- Zgodę na zabieg\r\n\r\nZgody konsultowane z prawnikiem.\r\n\r\nCały pakiet DOKUMENTÓW ZABIEGOWYCH jest profesjonalnie zaprojektowany, łatwy do uzupełnienia i dostosowany do indywidualnych potrzeb salonu beauty. Wszystkie dokumenty są w formacie PDF, co umożliwia łatwe przechowywanie, drukowanie i udostępnianie klientom.\r\n\r\nPowyższe dokumenty są zgodne z obowiązującymi przepisami prawa i spełniają najwyższe standardy jakości.\r\n\r\nPakiet dokumentów objęty jest prawami autorskimi - stworzony na użytek osobisty. ZABRONIONA jest dalsza odsprzedaż dokumentów.",
+    "price_pln": 75.0,
+    "image": "uploads/8d0cd1ff8ddb4164aceaeb9e715a025d.png",
+    "file": "custom_uploads/05db1de5b43043329eb92d710c1942e0.zip",
+    "category": "LAMINACJA BRWI",
+    "docu_cat_slug": "laminacja-brwi",
+    "created_at": 1769018144
+  }
+]

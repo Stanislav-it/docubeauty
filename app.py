@@ -655,13 +655,34 @@ def create_app() -> Flask:
             return False
 
     def _best_effort_copytree(src: str, dst: str) -> None:
-        """Copy src -> dst without failing the app startup."""
+        """Copy src -> dst (best-effort) WITHOUT overwriting existing dst files.
+
+        Rationale:
+        - On Render, this runs on every deploy. If we overwrite dst, we'd wipe persisted overrides.
+        - We only want a one-time seed of missing files (first boot), not destructive sync.
+        """
         try:
             if not os.path.isdir(src):
                 return
             _safe_mkdir(dst)
-            # Python 3.8+: dirs_exist_ok
-            shutil.copytree(src, dst, dirs_exist_ok=True)
+
+            for root, dirs, files in os.walk(src):
+                rel_root = os.path.relpath(root, src)
+                dst_root = dst if rel_root in ('.', '') else os.path.join(dst, rel_root)
+                _safe_mkdir(dst_root)
+
+                for d in dirs:
+                    _safe_mkdir(os.path.join(dst_root, d))
+
+                for fn in files:
+                    s = os.path.join(root, fn)
+                    t = os.path.join(dst_root, fn)
+                    if os.path.exists(t):
+                        continue
+                    try:
+                        shutil.copy2(s, t)
+                    except Exception:
+                        pass
         except Exception:
             return
 
